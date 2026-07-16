@@ -22,7 +22,7 @@ struct AboutView: View {
                 }
 
                 Section("Privacy") {
-                    Link(destination: URL(string: "https://walkup.app/privacy")!) {
+                    Link(destination: URL(string: "https://walkup-privacy.netlify.app/")!) {
                         HStack {
                             Label("Privacy policy", systemImage: "doc.text")
                             Spacer()
@@ -30,7 +30,7 @@ struct AboutView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Link(destination: URL(string: "https://walkup.app/support")!) {
+                    Link(destination: URL(string: "https://walkup-privacy.netlify.app/")!) {
                         HStack {
                             Label("Support", systemImage: "questionmark.circle")
                             Spacer()
