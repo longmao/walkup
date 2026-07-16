@@ -23,16 +23,11 @@ final class StepCounter: ObservableObject {
         authorizationStatus = CMPedometer.authorizationStatus()
     }
 
-    /// Request permission and start counting from now.
+    /// Start counting from now. Permission is requested implicitly by `startUpdates`
+    /// (system presents the prompt the first time the user takes steps under the alarm).
     func begin() {
-        CMPedometer.requestAuthorization { [weak self] status in
-            DispatchQueue.main.async {
-                self?.authorizationStatus = status
-                if status == .authorized {
-                    self?.startCounting()
-                }
-            }
-        }
+        authorizationStatus = CMPedometer.authorizationStatus()
+        startCounting()
     }
 
     private func startCounting() {

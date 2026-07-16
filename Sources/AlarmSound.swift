@@ -24,7 +24,8 @@ final class AlarmSound {
     func stop() {
         player?.stop()
         player = nil
-        AudioServicesStopSystemSoundID(SystemSoundID(1304))  // SMSReceived_Alert
+        // Note: AudioServicesStopSystemSoundID was removed in iOS 27 SDK.
+        // It was a no-op for short system sounds anyway — AVAudioPlayer.stop() is sufficient.
         // No clean cancellation for haptic loop — fires for a few more seconds, harmless.
     }
 

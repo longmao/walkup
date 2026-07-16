@@ -28,7 +28,7 @@ targets:
       - path: Assets.xcassets
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.walkup.stepup
+        PRODUCT_BUNDLE_IDENTIFIER: com.walkup.StepUp
         PRODUCT_NAME: StepUp
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO

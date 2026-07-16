@@ -30,9 +30,9 @@ struct RootView: View {
             } else {
                 TabView {
                     AlarmSetupView(onRingingStarted: startRinging)
-                        .tabItem { Label("Alarm", label: { Text("Alarm") }) }
+                        .tabItem { Label("Alarm", systemImage: "alarm.fill") }
                     AboutView()
-                        .tabItem { Label("About", label: { Text("About") }) }
+                        .tabItem { Label("About", systemImage: "info.circle") }
                 }
             }
         }
