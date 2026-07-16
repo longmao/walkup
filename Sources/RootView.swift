@@ -9,6 +9,7 @@ import UserNotifications
 struct RootView: View {
     @EnvironmentObject var alarmStore: AlarmStore
     @EnvironmentObject var stepCounter: StepCounter
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// True when the local notification has just fired (handled in-app).
     @State private var isRinging: Bool = false
@@ -36,7 +37,8 @@ struct RootView: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: isRinging)
+        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: isRinging)
+        .sensoryFeedback(.warning, trigger: stepCounter.currentSteps)
         .task {
             await requestPermissionsIfNeeded()
         }

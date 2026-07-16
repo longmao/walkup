@@ -25,6 +25,7 @@ struct AlarmSetupView: View {
                     DatePicker("Wake up at", selection: timeBinding, displayedComponents: .hourAndMinute)
                         .datePickerStyle(.wheel)
                         .labelsHidden()
+                        .accessibilityLabel("Set wake up time")
                 }
 
                 Section {
@@ -45,6 +46,7 @@ struct AlarmSetupView: View {
                         step: 5
                     )
                     .labelsHidden()
+                    .accessibilityLabel("Adjust steps to dismiss")
                 } header: {
                     Text("Walk to dismiss")
                 } footer: {
@@ -72,6 +74,7 @@ struct AlarmSetupView: View {
                             Task { await AlarmScheduler.schedule(alarmStore.alarm) }
                         }
                     ))
+                    .accessibilityLabel("Enable alarm")
                 }
 
                 Section {
@@ -85,6 +88,7 @@ struct AlarmSetupView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityLabel("Test the alarm now")
                 } footer: {
                     Text("Test fires the alarm immediately so you can try the walk-to-dismiss flow without waiting for the scheduled time.")
                 }
@@ -115,11 +119,12 @@ private struct DayChip: View {
         Button(action: onTap) {
             Text(label.prefix(1))
                 .font(.subheadline.weight(.semibold))
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
                 .background(selected ? Color.accentColor : Color.secondary.opacity(0.15))
                 .foregroundStyle(selected ? .white : .primary)
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Toggle \(label) day")
     }
 }

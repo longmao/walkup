@@ -6,6 +6,7 @@
 import SwiftUI
 
 struct AlarmRingingView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let requiredSteps: Int
     let currentSteps: Int
     @Binding var emergencyHold: Double
@@ -45,7 +46,7 @@ struct AlarmRingingView: View {
                         .trim(from: 0, to: progress)
                         .stroke(Color.white, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                        .animation(.easeOut(duration: 0.3), value: progress)
+                        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.7), value: progress)
                     VStack {
                         Text("\(currentSteps)")
                             .font(.system(size: 72, weight: .heavy, design: .rounded))
@@ -69,6 +70,7 @@ struct AlarmRingingView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
                     .padding(.horizontal, 24)
+                    .accessibilityLabel("Stop the alarm")
                 } else {
                     // Emergency fallback: long-press 3 seconds to dismiss (compliance 5.1.1(iv)).
                     VStack(spacing: 8) {
@@ -85,6 +87,7 @@ struct AlarmRingingView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Long press 3 seconds to dismiss")
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 3.0)
                                 .onChanged { _ in

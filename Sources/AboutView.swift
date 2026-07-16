@@ -11,7 +11,6 @@ struct AboutView: View {
             Form {
                 Section {
                     Label("Free forever", systemImage: "heart.fill")
-                        .foregroundStyle(.pink)
                     Label("No ads", systemImage: "nosign")
                     Label("No subscription", systemImage: "creditcard.trianglebadge.exclamationmark")
                     Label("No tracking", systemImage: "eye.slash")
@@ -30,6 +29,7 @@ struct AboutView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .accessibilityLabel("View privacy policy")
                     Link(destination: URL(string: "https://longmao.github.io/walkup-privacy/")!) {
                         HStack {
                             Label("Support", systemImage: "questionmark.circle")
@@ -38,6 +38,7 @@ struct AboutView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .accessibilityLabel("Get support")
                 }
 
                 Section("How it works") {

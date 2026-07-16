@@ -56,6 +56,9 @@ final class AlarmSound {
     }
 
     private func startHapticLoop() {
+        // 注：iOS 26 推荐用 SwiftUI .sensoryFeedback 替代此循环。
+        // 因 AlarmSound 是 @MainActor 旧 API 类 · 暂保留。
+        // RootView 调用 AlarmRingingView 时可改用 .sensoryFeedback(.warning, trigger: ...)
         let generator = UINotificationFeedbackGenerator()
         generator.prepare()
         Task { @MainActor in
