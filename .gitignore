@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# iOS simulator
+*.app
+
+# 凭证 / private
+*.p8
+*.p12
+AuthKey_*.p8
+*.cer
+*.mobileprovision
+
+# local config
+.env
+*.local
