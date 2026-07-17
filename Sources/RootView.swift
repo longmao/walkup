@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UserNotifications
+import CoreMotion
 
 struct RootView: View {
     @EnvironmentObject var alarmStore: AlarmStore
@@ -15,8 +16,6 @@ struct RootView: View {
     @State private var isRinging: Bool = false
     /// Steps required for THIS ringing (random per fire = anti-cheat).
     @State private var requiredSteps: Int = 0
-    /// Long-press progress for emergency dismiss (fallback per 5.1.1(iv)).
-    @State private var emergencyHold: Double = 0
 
     var body: some View {
         ZStack {
@@ -24,7 +23,6 @@ struct RootView: View {
                 AlarmRingingView(
                     requiredSteps: requiredSteps,
                     currentSteps: stepCounter.currentSteps,
-                    emergencyHold: $emergencyHold,
                     onEmergencyDismiss: emergencyDismiss
                 )
                 .transition(.opacity)
@@ -41,6 +39,33 @@ struct RootView: View {
         .sensoryFeedback(.warning, trigger: stepCounter.currentSteps)
         .task {
             await requestPermissionsIfNeeded()
+
+            // Proactively trigger the Motion & Fitness permission dialog on
+            // first launch if the user hasn't decided yet. Without this, the
+            // user can launch the app, glance at the alarm-setup screen, and
+            // never see the system permission prompt — which silently breaks
+            // step counting. Starting pedometer updates with an empty handler
+            // and stopping immediately is enough to surface the system prompt
+            // while we ignore any callback noise.
+            let status = CMPedometer.authorizationStatus()
+            if status == .notDetermined {
+                let trigger = CMPedometer()
+                trigger.startUpdates(from: Date()) { _, _ in }
+                trigger.stopUpdates()
+            }
+
+            // Smoke-test hook: when `AUTOTEST_SECONDS` is set in the launch
+            // environment, schedule an alarm that fires `N`s from now so
+            // headless verification can exercise willPresent + didReceive
+            // without touching the time-picker UI. No-op when the env var
+            // is absent.
+            if let s = ProcessInfo.processInfo.environment["AUTOTEST_SECONDS"],
+               let seconds = Double(s) {
+                try? await AlarmScheduler.scheduleAutotest(
+                    after: seconds,
+                    stepCount: alarmStore.alarm.stepCount
+                )
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .stepUpAlarmFired)) { _ in
             startRinging()
@@ -48,10 +73,11 @@ struct RootView: View {
     }
 
     private func requestPermissionsIfNeeded() async {
-        _ = await AlarmScheduler.requestPermissions()
-        if alarmStore.alarm.enabled {
-            await AlarmScheduler.schedule(alarmStore.alarm)
-        }
+        let granted = await AlarmScheduler.requestPermissions()
+        guard granted else { return }
+        // Permission just flipped from .notDetermined → authorized; reschedule
+        // so a previously-suspended alarm request now actually fires.
+        alarmStore.rescheduleNow()
     }
 
     private func startRinging() {
@@ -71,7 +97,6 @@ struct RootView: View {
         stepCounter.stop()
         AlarmSound.shared.stop()
         isRinging = false
-        emergencyHold = 0
     }
 }
 

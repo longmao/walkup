@@ -7,9 +7,9 @@ import SwiftUI
 
 struct AlarmRingingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject var stepCounter: StepCounter
     let requiredSteps: Int
     let currentSteps: Int
-    @Binding var emergencyHold: Double
     let onEmergencyDismiss: () -> Void
 
     private var progress: Double {
@@ -72,7 +72,10 @@ struct AlarmRingingView: View {
                     .padding(.horizontal, 24)
                     .accessibilityLabel("Stop the alarm")
                 } else {
-                    // Emergency fallback: long-press 3 seconds to dismiss (compliance 5.1.1(iv)).
+                    // Long-press 3s fallback for users who declined Motion permission
+                    // (App Store compliance 5.1.1(iv)). Real visual ring-fill feedback
+                    // for the long-press arrives with the "Sunrise ring" redesign on
+                    // D3 of the design upgrade sprint.
                     VStack(spacing: 8) {
                         Text("Can't walk?")
                             .font(.footnote)
@@ -90,11 +93,7 @@ struct AlarmRingingView: View {
                         .accessibilityLabel("Long press 3 seconds to dismiss")
                         .simultaneousGesture(
                             LongPressGesture(minimumDuration: 3.0)
-                                .onChanged { _ in
-                                    emergencyHold = 1
-                                    onEmergencyDismiss()
-                                }
-                                .onEnded { _ in emergencyHold = 0 }
+                                .onEnded { _ in onEmergencyDismiss() }
                         )
                     }
                     .padding(.horizontal, 24)

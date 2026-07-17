@@ -69,10 +69,7 @@ struct AlarmSetupView: View {
                 Section {
                     Toggle("Enabled", isOn: Binding(
                         get: { alarmStore.alarm.enabled },
-                        set: { newValue in
-                            alarmStore.alarm.enabled = newValue
-                            Task { await AlarmScheduler.schedule(alarmStore.alarm) }
-                        }
+                        set: { alarmStore.alarm.enabled = $0 }
                     ))
                     .accessibilityLabel("Enable alarm")
                 }
@@ -103,9 +100,7 @@ struct AlarmSetupView: View {
         } else {
             alarmStore.alarm.repeatDays.insert(day)
         }
-        if alarmStore.alarm.enabled {
-            Task { await AlarmScheduler.schedule(alarmStore.alarm) }
-        }
+        // AlarmStore.alarm.didSet reschedules when hasLoaded is true.
     }
 }
 

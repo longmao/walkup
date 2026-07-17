@@ -39,10 +39,18 @@ struct Alarm: Codable, Identifiable, Equatable {
 @MainActor
 final class AlarmStore: ObservableObject {
     @Published var alarm: Alarm {
-        didSet { save() }
+        didSet {
+            // Skip during init hydration; only react to user-initiated mutations.
+            guard hasLoaded else { return }
+            save()
+            Task { await AlarmScheduler.schedule(alarm) }
+        }
     }
 
     private let key = "stepup.alarm.v1"
+    /// Flips to true at the end of init so didSet knows whether the change
+    /// came from hydration or from the user touching a control.
+    private var hasLoaded = false
 
     init() {
         if let data = UserDefaults.standard.data(forKey: key),
@@ -51,6 +59,14 @@ final class AlarmStore: ObservableObject {
         } else {
             self.alarm = .default
         }
+        hasLoaded = true
+    }
+
+    /// Reschedule after the user grants notification permission, so a pending
+    /// alarm that was scheduled while permission was `.notDetermined` actually
+    /// fires once the user says yes.
+    func rescheduleNow() {
+        Task { await AlarmScheduler.schedule(alarm) }
     }
 
     private func save() {

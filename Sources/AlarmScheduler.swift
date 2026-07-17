@@ -61,4 +61,21 @@ enum AlarmScheduler {
     static func cancelAll() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
     }
+
+    /// CLI smoke-test hook: when launched with `-autotest N`, schedule a
+    /// `UNTimeIntervalNotificationTrigger` that fires `N` seconds from now.
+    /// This lets us verify willPresent + didReceive end-to-end without driving
+    /// the iOS date-picker UI from CI. Production launches (no `-autotest`)
+    /// are unaffected.
+    static func scheduleAutotest(after seconds: TimeInterval, stepCount: Int) async throws {
+        let content = UNMutableNotificationContent()
+        content.title = "Walk Up"
+        content.body = "Walk \(stepCount) steps to dismiss."
+        content.sound = .default
+        content.categoryIdentifier = "STEPUP_ALARM"
+        content.userInfo = ["stepCount": stepCount]
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
+        let req = UNNotificationRequest(identifier: "stepup.autotest", content: content, trigger: trigger)
+        try await UNUserNotificationCenter.current().add(req)
+    }
 }

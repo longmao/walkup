@@ -31,19 +31,45 @@ final class StepCounter: ObservableObject {
     }
 
     private func startCounting() {
-        guard CMPedometer.isStepCountingAvailable() else {
-            // Hardware unavailable — caller should show fallback.
+        // Headless-test escape hatch: when AUTOTEST_NO_MOTION is set, mark counting
+        // so the UI shows the in-progress ring but skip the hardware call (which
+        // implicitly triggers the NSMotionUsageDescription prompt on first use).
+        if ProcessInfo.processInfo.environment["AUTOTEST_NO_MOTION"] != nil {
+            currentSteps = 0
+            startDate = Date()
+            isCounting = true
+            NSLog("[StepCounter] AUTOTEST_NO_MOTION — skipped CMPedometer call")
             return
         }
+
+        guard CMPedometer.isStepCountingAvailable() else {
+            NSLog("[StepCounter] isStepCountingAvailable()=false — hardware unavailable")
+            return
+        }
+
         currentSteps = 0
         startDate = Date()
         isCounting = true
-        pedometer.startUpdates(from: startDate!) { [weak self] data, _ in
-            guard let self, let data else { return }
+        authorizationStatus = CMPedometer.authorizationStatus()
+        NSLog("[StepCounter] begin — authStatus=\(authorizationStatus.rawValue) (0=notDetermined 1=restricted 2=denied 3=authorized) — starting updates...")
+
+        let didStart = pedometer.startUpdates(from: startDate!) { [weak self] data, error in
+            guard let self else { return }
+            if let error {
+                NSLog("[StepCounter] startUpdates error: \(error.localizedDescription)")
+                return
+            }
+            guard let data else {
+                NSLog("[StepCounter] startUpdates callback fired with nil data")
+                return
+            }
+            let count = data.numberOfSteps.intValue
             DispatchQueue.main.async {
-                self.currentSteps = data.numberOfSteps.intValue
+                NSLog("[StepCounter] update — steps=\(count)")
+                self.currentSteps = count
             }
         }
+        NSLog("[StepCounter] startUpdates returned \(didStart)")
     }
 
     func stop() {

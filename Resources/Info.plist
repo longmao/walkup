@@ -39,5 +39,16 @@
     </array>
     <key>UIUserInterfaceStyle</key>
     <string>Automatic</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.walkup.StepUp</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>walkup</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
