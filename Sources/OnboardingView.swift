@@ -8,6 +8,7 @@
 
 import SwiftUI
 import CoreMotion
+import UserNotifications
 
 struct OnboardingView: View {
     @Binding var isPresented: Bool
@@ -43,7 +44,25 @@ struct OnboardingView: View {
 
     private func complete() {
         UserDefaults.standard.set(true, forKey: "stepup.onboarded.v1")
+
+        // Safety net: ensure notification permission has been requested at
+        // least once before onboarding dismisses. If the user got here
+        // without tapping "Enable motion" (e.g. skipped via swipe), we still
+        // want one prompt — never on every cold launch. If they've already
+        // decided (granted/denied) we leave the choice alone.
+        Task { await ensureNotificationPermissionRequestedOnce() }
+
         withAnimation(Motion.spring) { isPresented = false }
+    }
+
+    /// Asks for notification authorization only when the user hasn't yet
+    /// been prompted (status == .notDetermined). Idempotent and silent on
+    /// returning users.
+    private func ensureNotificationPermissionRequestedOnce() async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .notDetermined else { return }
+        _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
     }
 }
 
@@ -144,6 +163,19 @@ private struct MotionStep: View {
                 let trigger = CMPedometer()
                 trigger.startUpdates(from: Date()) { _, _ in }
                 trigger.stopUpdates()
+
+                // Bundle the notification permission into this same tap so the
+                // user is never ambushed by a separate prompt on a later cold
+                // start. iOS coalesces both system prompts naturally; the user
+                // sees them back-to-back in the same gesture.
+                Task {
+                    let center = UNUserNotificationCenter.current()
+                    let settings = await center.notificationSettings()
+                    if settings.authorizationStatus == .notDetermined {
+                        _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
+                    }
+                }
+
                 onNext()
             })
             .padding(.horizontal, Spacing.l)

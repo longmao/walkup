@@ -62,7 +62,7 @@ struct RootView: View {
         }
         .animation(reduceMotion ? nil : Motion.spring, value: isRinging)
         .sensoryFeedback(.warning, trigger: stepCounter.currentSteps)
-        .task { await requestPermissionsIfNeededAndBootstrap() }
+        .task { await bootstrapOnColdStart() }
         .onReceive(NotificationCenter.default.publisher(for: .stepUpAlarmFired)) { _ in
             startRinging()
         }
@@ -78,11 +78,15 @@ struct RootView: View {
         }
     }
 
-    /// Combined first-launch bootstrap: permissions, motion probe, autotest.
-    /// Split out of the inline `.task` so the body reads as composition only.
-    private func requestPermissionsIfNeededAndBootstrap() async {
-        await requestPermissionsIfNeeded()
-
+    /// Cold-start bootstrap: motion probe + autotest hook.
+    ///
+    /// IMPORTANT: Notification permission is NOT requested here. Asking on
+    /// every cold launch surfaces the system prompt on each app open, which
+    /// feels broken. Permission is instead requested once during onboarding
+    /// (Step 2 — "Enable motion" — together with the motion prompt, and
+    /// again on `OnboardingView.complete()` as a safety net for users who
+    /// landed on the alarm-setup screen without finishing onboarding).
+    private func bootstrapOnColdStart() async {
         // Proactively trigger the Motion & Fitness permission dialog on
         // first launch if the user hasn't decided yet. Without this, the
         // user can launch the app, glance at the alarm-setup screen, and
@@ -97,6 +101,16 @@ struct RootView: View {
             trigger.stopUpdates()
         }
 
+        // If a returning user already enabled alarms but declined notification
+        // permission on a prior run, no prompt is needed — but we must still
+        // reschedule so today's alarm fires once they tap Enable again from
+        // setup. We only act when we know authorization is already granted;
+        // otherwise stay quiet and let onboarding drive the prompt.
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional {
+            alarmStore.rescheduleNow()
+        }
+
         // Smoke-test hook: when `AUTOTEST_SECONDS` is set in the launch
         // environment, schedule an alarm that fires `N`s from now so
         // headless verification can exercise willPresent + didReceive
@@ -109,14 +123,6 @@ struct RootView: View {
                 stepCount: alarmStore.alarm.stepCount
             )
         }
-    }
-
-    private func requestPermissionsIfNeeded() async {
-        let granted = await AlarmScheduler.requestPermissions()
-        guard granted else { return }
-        // Permission just flipped from .notDetermined → authorized; reschedule
-        // so a previously-suspended alarm request now actually fires.
-        alarmStore.rescheduleNow()
     }
 
     private func startRinging() {

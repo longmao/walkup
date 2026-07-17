@@ -24,8 +24,8 @@ struct AlarmSetupView: View {
         ZStack(alignment: .bottom) {
             ScrollView {
                 VStack(spacing: Spacing.l) {
-                    // Top breathing room — gives the time hero App Store screenshot presence.
-                    Color.clear.frame(height: 12)
+                    // Top breathing room.
+                    Color.clear.frame(height: 8)
 
                     // ── Time hero ────────────────────────────────────────────────
                     VStack(spacing: Spacing.xs) {
@@ -57,21 +57,19 @@ struct AlarmSetupView: View {
                         weekdayLabels: alarmStore.weekdayLabels
                     )
 
-                    // Bottom safe-area so the floating tab + action bar don't clip content.
-                    Color.clear.frame(height: 80)
+                    // ── Bottom action bar (in-flow, not floating) ──────────────
+                    HStack(spacing: Spacing.m) {
+                        EnablePill(enabled: $alarmStore.alarm.enabled, enabledSubtitle: nextFireSubtitle)
+                        Spacer(minLength: Spacing.s)
+                        TestAlarmButton(action: onRingingStarted)
+                    }
+
+                    // Bottom safe-area so the floating tab pill (~64pt) doesn't clip content. 140pt covers BottomPill height + spacing.
+                    Color.clear.frame(height: 140)
                 }
                 .padding(.horizontal, Spacing.l)
             }
             .scrollIndicators(.hidden)
-
-            // ── Bottom action bar ────────────────────────────────────────────
-            HStack(spacing: Spacing.m) {
-                EnablePill(enabled: $alarmStore.alarm.enabled, enabledSubtitle: nextFireSubtitle)
-                Spacer(minLength: Spacing.s)
-                TestAlarmButton(action: onRingingStarted)
-            }
-            .padding(.horizontal, Spacing.l)
-            .padding(.bottom, Spacing.l)
         }
     }
 
