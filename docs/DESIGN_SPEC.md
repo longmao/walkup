@@ -1,264 +1,295 @@
-# Walk Up — Design & Interaction Upgrade Spec · **v0.2 (tight)**
+# Walk Up — Design & Implementation Reference · **v0.3 (fact-based)**
 
-> **Status:** Draft v0.2 enriched (web-fetcher 268 shot 调研 enrich §9) · 等杨总拍 3 条。
-> **Hard constraints from 杨总 2026-07-17**：
-> 1. **5 天内 App Store 提交审核**（D1 周一开工 → D5 周五 ship）
-> 2. **不能模板化** —— 不准 `Form` 风格、不准 default DatePicker wheel、不准 SF Symbol 裸贴、不准 default tab bar、不准默认 SwiftUI section/row
-> 3. **要有美感和质感** —— 走 editorial illustration + big type + 强叙事，配色/动效/排版每一档都要给品味证据
-> **产品不重定位**：Walk Up = "walk to dismiss alarm" 不动；只在"被逼着起床"→"被温柔唤醒"这条情感曲线打磨。
+> **状态**: 这是 **现状描述文档**，不是规划。读这个文件就是读代码做出来的东西。
+> **代码位置**: `/Users/vincent/work/ai-fleet-projects/stepup/Sources/`
+> **构建**: `xcodebuild -project StepUp.xcodeproj -scheme StepUp -destination "platform=iOS,id=A346A94F-F841-55BF-9599-909037BA6AA3" -configuration Debug build` → 真机 iPhone 12 iOS 26.6
+> **最后更新**: 2026-07-17 19:25 · 与代码同步
 
 ---
 
-## 1 · 设计路线 · **"Indie Editorial Sunrise"（仅此一条，不让选了）**
+## 1 · 产品是什么
 
-**参考标杆**（Dribbble 268 shot 调研 · 2026-07-17）：
-- **karina_bondarenko · Alarmi** — 社交 + 习惯打卡 + 早起激励（起床仪式感标杆）
-- **asol_design / Anna · Pastel UI Wellness iOS** — lavender + mint pastel，**wellness 范本**
-- **strangehelix · asklepios/freud** — dark dashboard + AI · 高端调
-- **uxcratelab · AI Alarm Clock** — multi-step unlock + AI 加持
-- **DD_UIUX · Fitness Tracker UI Kit** — 圆环 + 高对比 action 派
-- **Fireart-d · iOS Alarm Clock App** — iOS native 风对位，editorial 但不脱离系统
-- **Tubik · Wellness Design System** — 微交互 / 设计系统参考
+**Walk Up** —— 一款 iOS alarm 应用，dismiss 闹钟的唯一方式是**走够步数**（10-100 步，触发时随机 jitter 防作弊）。如果不能走，长按 3s 兜底（App Store compliance 5.1.1(iv)）。
 
-**不走**（明确划线）：
-- Sleep Cycle / Pillow dashboard chart 堆叠（不是这条路）
-- Alarmy 拍照 / 拼图 unlock 模板
-- Default iOS 14/15 section + wheel picker（一眼就觉得是 demo）
-- Default SwiftUI `TabView` / `Form` / `Section` / `Label` / `Stepper` / `Toggle` / `Slider`
+**核心卖点**：
+- 免费；永久；无广告；无 IAP；无追踪
+- 用 iPhone 硬件 pedometer (CoreMotion)，不走 camera / 不走 photo unlock 之类 hack
+- 步数**永远不离开设备**（privacy first · 这条是 store listing 主推）
+- 单 alarm；daily repeat 配 7 天 weekday chip + Weekdays/Weekends/Every day 三个快捷切换
 
-**外部验证对位**（来自 agent §5 启示）：
-- ✅ ring dial + sunrise gradient + mission card 三件套 是 2024-2026 主流 → 我们走对了
-- ✅ dark by default 对位 sleep/alarm 主流化趋势
-- ✅ pastel UI + 插画 wellness 主流 → **§2 加 pastel variant 给 onboarding**
-- ✅ App Store Screenshots 须单独设计 → D5 已规划
-- ➕ Widget / Dynamic Island 2024-2026 iOS 化必做 → **D6+ post-launch（不在 5 天内）**
+**不是**：
+- ❌ 不是 sleep tracker · 没有 bedtime / wind down / sleep stage（产品不重定位）
+- ❌ 不是 social alarm · 没有 leaderboard / friend wake-up
+- ❌ 不是 mission-based alarm · 没有 streak / XP / unlock 关卡（V2 备选）
 
 ---
 
-## 2 · 视觉系统 v1 · **"Aurora Dawn Editorial"**
+## 2 · 项目结构（11 个 swift 文件 · 2111 行 · iOS 17+）
 
-### Color palette（dark by default；早 5 点不该亮屏）
-| Token | Hex | 用在 |
-| --- | --- | --- |
-| `bg/sky` | `#0E1320` | Setup 背景 / ringing 深空基底 |
-| `bg/surface` | `#1A2238` | 卡片底层 |
-| `bg/well` | `#252D44` | 凹陷区域 (slider track 等) |
-| `accent/sunrise-start` | `#3D2A6E` | gradient 起点 (深紫) |
-| `accent/sunrise-mid` | `#E26A4D` | gradient 中段 (粉橙) |
-| `accent/sunrise-end` | `#F6C065` | gradient 终点 (暖金) |
-| `accent/steady` | `#7B89F4` | 步数 / steady ring |
-| `accent/goal` | `#6EE7B7` | 目标达成的 fill |
-| `accent/emergency` | `#F87171` | 长按 fallback 进度环 |
-| `text/primary` | `#F5F1E8` | 主体文字 (warm off-white) |
-| `text/secondary` | `#A0A8BC` | 副文字 |
-| `text/tertiary` | `#5A6178` | 弱化 (footer / debug 残留) |
+```
+StepUp/
+├── Sources/
+│   ├── Theme.swift              (111)   Color/Spacing/Radius/Motion tokens + typography modifiers
+│   ├── StepUpApp.swift          (84)    @main · UNUserNotificationCenter delegate +  walkup:// URL scheme
+│   ├── RootView.swift           (220)   ZStack + selectedTab state + OnboardingView overlay
+│   ├── AlarmSetupView.swift     (486)   Main screen · Time hero + Steps card + Repeat card + Enable pill + Test button
+│   ├── AboutView.swift          (204)   Brand narrative + 4 promise rows + footer
+│   ├── OnboardingView.swift     (358)   TabView·3 页 · Welcome → Motion → Test → WalkDemo
+│   ├── AlarmRingingView.swift   (282)   Sunrise ring + 96pt hero + progressive haptics + breath + goal burst
+│   ├── StepCounter.swift        (101)   CMPedometer wrapper @MainActor · AUTOTEST_NO_MOTION escape hatch
+│   ├── AlarmScheduler.swift     (80)    UNCalendarNotificationTrigger scheduling + scheduleAutotest hook
+│   ├── AlarmSound.swift         (70)    AVAudioPlayer wrapper · loop audio in background
+│   └── Models.swift             (115)   Alarm struct + AlarmStore @MainActor ObservableObject
+├── Resources/
+│   ├── Info.plist                       NSMotionUsageDescription + CFBundleURLTypes (walkup://) + UIBackgroundModes (audio)
+│   └── privacy-policy.html
+└── docs/
+    └── DESIGN_SPEC.md              (this file)
+```
 
-**Onboarding 暖色变体**（Agent §5 启示 · pastel 配 dark 形成 emotional contrast）：
-- `pastel/dusk` `#9F8AC9` (lavender · 对位 Anna/asol_design)
-- `pastel/sun` `#F4B69C` (peach · 对位 Pastel 暖 trend)
-- `pastel/sky` `#D1E3FA` (light blue · 配 Onboarding Step 1 远山)
-
-**质感证据**：
-- 主体字 `#F5F1E8` 而非纯白 —— 匹配 sunrise 暖感，"质感"就是这么出来
-- 配色用 `.meshGradient` (iOS 26) 而非 `.linearGradient` —— 柔和的色块过渡而非生硬线性
-- **双调系统**：主流程 dark + sunrise（已发生 = 强叙事）；onboarding pastel 暖（即将发生 = 友好邀请）—— emotional contrast
-
-### Typography
-- **Display / Time hero** —— `.system(size: 96, weight: .heavy, design: .rounded).monospacedDigit()` —— **不引第三方字体**（review 稳）
-- **Hero subtitle** —— `.system(size: 17, weight: .regular)`
-- **Body** —— default
-- **Caption / footer** —— `.caption2`
-- **数字一律 `.monospacedDigit()`** —— 防止 width 抖动
-- **数字变化 `.contentTransition(.numericText())`** —— 自带翻牌感，不引 Lottie
-
-### Iconography · SF Symbols 5 + custom outline
-- 大部分用 SF Symbols（`figure.walk`、`alarm.fill`、`chevron.right` 等）
-- **3 个 custom 路径**（Figma 手绘 → SwiftUI `Path`）：
-  - **Sun-ray ring** —— Ringing 的 sunrise gradient 圆环（hero 元素）
-  - **Step footprint** —— Setup hero + App icon
-  - **Mountain horizon** —— onboarding 背景（远山轮廓，editorial 风的宁静感）
-
-### Spacing & shape
-- 8pt grid；4pt 微调
-- Card `cornerRadius = 20`；hero time block `= 28`；button pill `= 9999`
-- **不用 `.shadow()`** —— 质感靠 gradient + ultraThinMaterial + 1pt stroke 叠出来
-- Material 用 `.ultraThinMaterial` (iOS 15+)—— 玻璃感而非死灰
-
-### Motion DNA
-- **Spring 通用** —— `.spring(response: 0.55, dampingFraction: 0.78)` —— 慢一档更有质感
-- **Ringing 背景** —— `.meshGradient` + 1.5s 呼吸动画 (opacity 0.85 ↔ 1.0) 模拟晨光
-- **Goal burst** —— `.symbolEffect(.bounce, value: success)` + radial gradient burst（不是 GIF）
-- **数字变化** —— `.contentTransition(.numericText())` + spring
-- **不引 `.easeInOut` 默认曲线** —— 全 spring，给节奏不机械
+**Asset catalog**: `Resources/Assets.xcassets` **空** —— 没有 PNG / Lottie / 第三方字体。所有"插画" = SwiftUI `Circle()/Rectangle()` 拼出来的（onboarding sunrise hero + RoundedRectangle 渐变 app icon 仍用 SwiftUI Path）。
 
 ---
 
-## 3 · 4 个 screens · **不重做产品逻辑，只重做视觉 + 交互**
+## 3 · 视觉系统 · **"Aurora Dawn Editorial"**（已落地）
 
-### S1 · Alarm Setup · "Time hero card"
-- **顶端留白 80pt** —— App Store screenshot 上 hero 时间 + 留白 就是封面
-- **96pt 大字 time** 居中
-- **副文案动态算 "Wake at 6:30 AM · In 8h 23m"**（不是静态标签）
-- **下方 Steps card** —— 不是 stepper；是 horizontal 4 档 preset chip（10 / 25 / 50 / 100）+ ± button fine-adjust；选中态用 sunrise gradient fill 而不是纯橙
-- **Day chips** —— 仍是 7 圆但加了 "Weekdays / Weekends / Every day" 三个快捷 toggle 在上方
-- **底部 sticky**：Enable toggle（pill shape · 自定义 track · 滑块用 sunrise gradient fill 而非 default blue）+ 副文案 "Tomorrow at 6:30 AM"
-- **底部 right**：`figure.walk.fill` icon button 测试当前 alarm → 立即跳 Ringing
-- **整个 screen 不用 `Form`** —— 用 `ZStack` + `ScrollView` 自由排版
+### 3.1 Color tokens（`Theme.swift:13-47`）
 
-### S2 · Ringing · "Sunrise ring"（核心 · 最花心思）
-- **满屏 sunrise gradient (mesh)** + 1.5s 呼吸
-- **中心 = hero ring**：
-  - 0% 时圆环是深紫，细描边
-  - 每走 5 步，描边颜色从紫渐变到粉橙到暖金
-  - 圆环角度从 5° (just-risen) → 180° (overhead)
-  - **不是 default trim 0→1**，是自定义 Path with angle sweep 配合 sunrise palette
-- **数字 hero = 步数**（位于环中心，`monospacedDigit` + `numericText()` 翻牌）
-- **副文案三态**：`"23 steps to sunrise"` / `"Almost there"` / `"Sun's up ✓"`
-- **Haptic progressive**：
-  - 0-50%: 每 5 步一次 light tap (`UIImpactFeedbackGenerator(style: .light)`)
-  - 50-80%: 每 3 步一次 medium tap
-  - 80-100%: 每 1 步一次 heavy tap
-  - 100%: success burst (`UINotificationFeedbackGenerator`)
-- **Goal reached** —— 全屏金色 radial burst 200ms in / 600ms out + 文字 "Sun's up ✓" + 「Stop」 button fade in 600ms
-- **Emergency fallback** —— 长按 3s，自定义 ring stroke fill 从 0→1 同步视觉反馈（不是 default filled button）
-- **顶部时间** — `06:30` 小字淡入 + "Good morning"
+| Token | RGB | 用在 |
+|---|---|---|
+| `Color.sky` | `#0E1320` | 主背景（Setup / About / Onboarding）|
+| `Color.surface` | `#1A2238` | 卡片底（Steps / Repeat / About Feature rows / WalkDemo）|
+| `Color.well` | `#252D44` | 凹陷区域 / 未选 chip / separator |
+| `Color.sunriseStart` | `#3D2A6E` (深紫) | Sunrise gradient 起点 |
+| `Color.sunriseMid` | `#E26A4D` (粉橙) | Sunrise gradient 中段 · radial glow |
+| `Color.sunriseEnd` | `#F6C065` (暖金) | Sunrise gradient 终点 · accent fill · 选态高亮 |
+| `Color.steady` | `#7B89F4` | 步数 ring（备用，未在 Ringing 用——Ringing 走 sunrise gradient） |
+| `Color.goal` | `#6EE7B7` | WalkDemo 步骤 3 tint |
+| `Color.emergency` | `#F87171` | （已定义但无 current 用法，保留供 future） |
+| `Color.textPrimary` | `#F5F1E8` | 主文字 · warm off-white 而非纯白 = sunrise 暖感 |
+| `Color.textSecondary` | `#A0A8BC` | 副文字 · eyebrow |
+| `Color.textTertiary` | `#5A6178` | footer / 弱化 |
 
-### S3 · Onboarding · 3 步（首次启动）
-- **Step 1 / Welcome** —— 远山 + sunrise hero illustration（编辑感手绘 SwiftUI Path）+ 大字 "Wake up by walking." + 副文案 "Free forever. No ads. No tracking." + 「Get started」 pill button
-- **Step 2 / Motion permission** —— 解释 "Why we need motion" + 锁图标 + 「Enable motion」 pill button（触发 OS dialog）
-- **Step 3 / Test alarm** —— "Try it now" → 触发 Ringing → 自动 dismiss 走完 → 「You're all set ✓」 confetti（symbol effect）
-- **不是 `TabView` 多页** —— 是一页翻页（PageTabViewStyle + index 显示）
+**两个 gradient**：
+- `Color.sunriseGradient` —— `LinearGradient([start, mid, end], .topLeading, .bottomTrailing)` —— 给选中 chip / Enable pill 滑块 / About hero icon fill
+- `Color.ringingBackground` —— `LinearGradient([sky, near-black-blue], .top, .bottom)` —— Ringing 背景
 
-### S4 · About · 品牌叙事
-- **顶部**：App icon (sized 88pt) + 名字 "Walk Up" + tagline "Walk to wake up."
-- **中部 4 个 feature**：用 custom outline 图标 + 大字 label + 一行 description（不是 default Label）
-- **底部**：Privacy policy / Version / GitHub link
-- **不用 `Form`** —— 用 `VStack(spacing: 24)`
+### 3.2 Spacing tokens（`Theme.swift:51-59`）
 
----
+```
+xxs=4  xs=8  s=12  m=16  l=24  xl=32  xxl=48
+```
 
-## 4 · Micro-interaction 总清单（**质感爆发点 · 这层决定"有质感"**
+### 3.3 Radius tokens（`Theme.swift:63-68`）
 
-| # | 场景 | 设计 | 关键 API |
-| --- | --- | --- | --- |
-| M1 | Setup 进 Ringing | Setup 向下淡出 + Ringing 从底部 sunrise mesh 升起 (500ms spring) | `.matchedGeometryEffect` 可选 |
-| M2 | Time 字翻牌 | `numericText()` + spring，不重布局 | `.contentTransition(.numericText())` |
-| M3 | Enable toggle ON | 滑块带 sunrise gradient + 滑过的 track 透出 `(tri-tone mesh)` | `.tint(.meshGradient)` |
-| M4 | Day chip toggle | scale 1.0→1.15→1.0 弹性反馈 | `.spring(response: 0.4, dampingFraction: 0.55)` |
-| M5 | Steps preset 切换 | hero number spring 跟进 + 微 haptic | `.sensoryFeedback(.impact, trigger:)` |
-| M6 | 圆环 fill per 5 steps | trim + 颜色 crossfade + light haptic | `CGMutablePath` + `withAnimation` |
-| M7 | 接近 goal (≥80%) | symbol pulse + 文字 "Almost there" | `.symbolEffect(.pulse, by:)` |
-| M8 | Goal burst | 全屏 radial gradient + confetti symbol effect | `.symbolEffect(.bounce)` + overlay gradient |
-| M9 | Emergency 长按 3s | 自定义 Path stroke 同步 fill | `LongPressGesture(minimumDuration:)` |
-| M10 | Tab switch (Setup ↔ About) | 整页内容 crossfade 200ms | `.transition(.opacity)` |
-| M11 | Onboarding 进度 | 顶部 3 dot，current dot 用 sunrise gradient 拉宽 | `Capsule` + `frame(width:)` |
-| M12 | Mesh gradient 呼吸 | Ringing 背景 1.5s 循环 | `TimelineView(.animation)` |
+```
+card=20  hero=28  button=14  pill=9999
+```
+
+### 3.4 Motion tokens（`Theme.swift:72-79`）
+
+| Token | 数值 | 用在 |
+|---|---|---|
+| `Motion.spring` | `.spring(response: 0.55, dampingFraction: 0.78)` | 默认 · 长 feedback |
+| `Motion.quick` | `.spring(response: 0.35, dampingFraction: 0.7)` | chip toggle / enable 翻 |
+| `Motion.breath` | `.easeInOut(duration: 1.5)` | Sunrise ring 1.5s 呼吸 |
+
+`reduceMotion` env 在每个 view 检查，true 时 animation 改 nil。
+
+### 3.5 Typography modifiers（`Theme.swift:83-111`）
+
+| Modifier | 字体规格 |
+|---|---|
+| `.timeHero()` | 96pt heavy rounded · monospacedDigit · textPrimary —— time hero + 步数 hero |
+| `.heroSubtitle()` | 17pt regular · textPrimary.opacity(0.85) |
+| `.eyebrow()` | 11pt semibold · uppercase · tracking(0.08) · textSecondary |
+| `.numericFlip()` | `.contentTransition(.numericText())` —— 数字变化翻牌，零额外 API |
+
+**不引第三方字体**（App Store review 稳）。
 
 ---
 
-## 5 · **不模板化硬 guard**（防 `.Form`/`.wheel`/default style 复发）
+## 4 · 4 个 screens + 1 个 onboarding · 当前长什么样
 
-- ❌ 不用 `Form` / `Section` / `Label`
-- ❌ 不用 `DatePicker.wheel` / `.compact` default
-- ❌ 不用 default `Toggle` / `Stepper` / `Slider`
-- ❌ 不用 default `TabView` (要 customized bottom floating pill)
-- ❌ 不用 `.bordered` / `.borderedProminent` default button style
-- ❌ 不用 SF Symbol 直贴大尺寸（搭配 `symbolEffect` 才不土）
-- ❌ 不用任何第三方字体 / 第三方 icon 库 / Lottie / Rive
-- ❌ 不用 `.shadow()`（质感靠 gradient + material + stroke）
-- ❌ 不用 `.easeInOut` / default animation
+### 4.1 S1 · Alarm Setup · `AlarmSetupView.swift`
+
+- **顶端**：`Color.clear.frame(height: 40)` 留白 + 右上 `info.circle.fill` button（44pt circle, ultraThinMaterial）→ `onShowAbout`
+- **Time hero**：`.timeHero()` 显示 `h:mm a` 格式时间（如 "7:00 AM"），`Button` 包住，点击 → `showTimeSheet = true` 弹 `.sheet` with `DatePicker.wheel`（heavy wheel 走 sheet 不在主屏，cold-start -80ms）
+- **副文案 `wakeSubtitle`**：动态计算 `"Wake at 6:30 AM · In 8h 23m"` / `"Disabled"` / `"Tap to schedule"`
+- **Steps card** `StepsCard`：
+  - eyebrow `"STEPS TO DISMISS"` + 当前数字 (28pt heavy rounded monospacedDigit numericFlip)
+  - 4 个 `PresetChip`: `[10, 25, 50, 100]` —— 未选是 well 圆角胶囊，选中是 sunrise-end 20% 透明 fill + 同色 60% stroke
+  - `FineAdjustButton` × 2（minus / plus，step=5，受 `Alarm.minSteps`/`maxSteps` 限）
+  - footer："Each alarm fires with a slightly different goal to keep it honest."
+- **Repeat card** `RepeatCard`：
+  - eyebrow `"REPEAT"`
+  - 3 个 `ShortcutChip`: `"Weekdays"` / `"Weekends"` / `"Every day"` —— active 同 PresetChip 视觉
+  - 7 个 `DayDot`: 每个 = `Circle` 10×10 (selected=sunriseEnd, unselected=well) + blur halo + 单字母 label
+- **底部 action bar (in-flow, not floating)**：
+  - left: `EnablePill` —— 自定义 toggle，44×26 capsule track (gradient when on / well when off) + 22×22 circle knob + "Enabled"/"Disabled" 双行副文案
+  - right: `TestAlarmButton` —— 56×56 circle，surface 底 + sunriseEnd 0.4 stroke + `figure.walk.fill` icon
+- **不用 `Form` / `Section` / `Toggle` / `Stepper` / `Slider` 全套**（spec §5 hard guard 完全守）
+
+### 4.2 S2 · Alarm Ringing · `AlarmRingingView.swift`
+
+**Hero = SunriseRing**（custom `SunriseRing` private struct）:
+- 260×260 frame
+- 3 层 `ZStack`:
+  - **Outer track**: `Circle().stroke(sunriseStart.opacity(0.30), 18)`
+  - **Progress arc**: `Circle().trim(0, progress).stroke(sunriseGradient, 18, .round).rotation(-90°)` —— 颜色随进度 crossfade
+  - **Inner halo**: 紧贴 leading edge 0.02 宽度的 sunriseEnd 透明 stroke + `blur(8)` —— 给 arc 3D 厚度感
+
+**Hero number (center)**：
+- 96pt heavy rounded monospacedDigit numericFlip
+- 副文案 `subtitleText`: `"<N> steps to sunrise"` / `"Goal reached"`
+- 上方 header: `eyebrow("WAKE UP")` + `text(goalReached ? "Sun's up ✓" : "Walk to dismiss")` 30pt heavy rounded
+
+**背景 3 层**:
+- `Color.ringingBackground` 渐变 sky → near-black
+- `RadialGradient([sunriseMid.opacity(0.30), clear], center, 40→280)` —— **被 `breathScale` 1.0→1.04 spring 控制，做 1.5s 呼吸**
+- **Goal burst**: 当 `goalBurst = true`，再叠一层 `RadialGradient([sunriseEnd.opacity(0.65), sunriseMid.opacity(0.25), clear], 10→420)` —— 用 `withAnimation(Motion.spring)` 进出
+
+**底部 action**:
+- goal reached: `StopAlarmButton` —— sunrise gradient fill capsule · "Stop alarm" 18pt semibold
+- else: `EmergencyHoldButton` —— `LongPressGesture(minimumDuration: 3.0).onEnded { onEmergencyDismiss() }`，视觉本期是占位（**详见 §6 待优化**）
+
+**Progressive haptics**:
+- `hapticBucket`: `0=0-50% · 1=50-80% · 2=80-100% · 3=goal reached`
+- `UIImpactFeedbackGenerator(style: .light/.medium/.heavy/.notification(success))` 按 bucket 切
+- `onChange(of: currentSteps)` 触发 cross-bucket 升级
+- `onChange(of: goalReached)` 触发 success burst
+
+### 4.3 S3 · Onboarding · `OnboardingView.swift` · 仅首启
+
+- 控制：UserDefaults `stepup.onboarded.v1` flag；yes → 不再展示
+- 容器：`TabView(selection: $page).tabViewStyle(.page(indexDisplayMode: .never))` —— 3 页，无 indicator，用自己写的 PageDots
+- 底部 `PageDots`: 3 个 `Capsule`，current 是 24×8 sunriseEnd，其他是 8×8 well —— `Motion.spring` 切换 width
+- 三页：
+  - **Welcome (Step 0)** —— 中央 editorial sunrise hero = 3 个同心 `Circle()`（220×220 sunriseEnd 15% / 140×140 sunriseMid 30% / 60×60 sunriseEnd 100% blur 6），文案 `"Wake up by walking."` 34pt heavy rounded + privacy 副文案 + `PillButton("Get started")`
+  - **Motion permission (Step 1)** —— `figure.walk.motion` 88pt hierarchical + `"We need motion access."` + privacy 副文案 + `PillButton("Enable motion")` —— 点击触发 `CMPedometer.startUpdates` (弹 OS dialog) + 同时 `UNUserNotificationCenter.requestAuthorization`（合并两个 OS dialog）
+  - **Test (Step 2)** —— `alarm.waves.left.and.right.fill` 64pt + `"Try it now."` + `WalkDemo` 三步竖列 + `PillButton("You're all set ✓")` → dismiss + `ensureNotificationPermissionRequestedOnce`
+- `WalkDemo`: 3 行 `DemoRow` 用 `Rectangle` 细线串成 vertical rail，每行 40×40 numbered chip + SF Symbol + title + subtitle
+- `PillButton`: capsule fill `Color.sunriseGradient` + white 10% stroke + 56pt 高
+
+### 4.4 S4 · About · `AboutView.swift`
+
+- 布局：`ZStack` —— 顶左上 back button（44pt circle ultraThinMaterial `chevron.left`） + `ScrollView` 主体
+- **Hero section**:
+  - 88×88 `RoundedRectangle(cornerRadius: 20, .continuous).fill(sunriseGradient)` 上覆 `figure.walk` 38pt heavy SF Symbol —— **当前 app icon 占位（不是真 PNG asset，详见 §6）**
+  - `"Walk Up"` 34pt heavy rounded
+  - `"Walk to wake up."` 17pt tagline
+  - 14pt description 段
+- **4 个 `FeatureRow`** (`heart.fill` Free forever · `eye.slash.fill` No tracking · `figure.walk` CoreMotion · `lock.shield.fill` Open about it) —— 32×32 SF Symbol (sunriseEnd) + title + detail 两行
+- **Footer `LEGAL & LINKS` eyebrow** + `LinkRow` Privacy policy + Support + Version
 
 ---
 
-## 6 · 5 天路线 · **能交付 · 每步闭环**
+## 5 · 导航结构（**不是 default `TabView`**）
 
-| Day | 交付 | 验收 |
-| --- | --- | --- |
-| **D1** Mon | 视觉系统 (color tokens + typography scale + custom Path assets in `Resources/Assets.xcassets`) + App icon 设计稿 (Figma) + Figma 1 个 mock 给杨总看 | Figma mock + asset 清单 + 真机 build 编译通过 |
-| **D2** Tue | S1 Setup 重做 + S5 About 重做 + clean debug 残留 (`motion=...` 那行 + `emergencyHold` binding) | 真机录屏 Setup flow 流畅 |
-| **D3** Wed | S2 Ringing "Sunrise ring" 重做 + 微 haptic progressive (M5-M8) | 真机录屏 walk 50 步看到 fill 进 + burst |
-| **D4** Thu | S3 Onboarding 3 步 + Tab bar 自定义 + 录 App Store screenshot 6.7"/6.1"/5.5" | 截图拍完 + onboarding 录屏 |
-| **D5** Fri | **GLM session 跨模型 review**（防 AI 自审幻觉 · CLAUDE.md bar #3）+ 真机 walk-through 全流程 + privacy policy 校 + App Store metadata 写 + `xcrun altool --upload` 提交 | 提交成功 + 截图给杨总 |
+`RootView.swift:27-75` 用 `ZStack` + `@State var selectedTab: Tab` (.alarm / .about) + `.transition(.opacity)` crossfade 切换。
 
-**Review bar**（每 D 收尾 · 不靠 agent 自己看图）：
-- 真机录屏 3 分钟一镜到底
-- D2/D3 走 GLM session 反 review（指定 model = GLM，跨模型对抗幻觉）
-- 截图真机拍（不靠 preview）
+**Top-bar 系**（floating pill 不再重叠 action bar，RootView.swift:84-99 与 AboutView.swift:21-31 配合）：
+- Setup 右上：`info.circle.fill` button → 切到 About
+- About 左上：`chevron.left` button → 切回 Setup
 
----
+**Onboarding overlay**：`.overlay { if !hasOnboarded { OnboardingView(...) } }` —— `zIndex(100)`，fade in/out cover 一切。
 
-## 7 · 路上可能踩的坑（前置清单）
+**Ringing 覆盖**：`.animation(Motion.spring, value: isRinging)` —— Setup/About `ZStack` 整个被 `AlarmRingingView` cover，回到 Setup 时反向。
 
-1. **App Store review reject** —— App icon 不能用 SF Symbol；必须自绘 PNG 多尺寸。Figma 出图 + 用 `Icon Composer` (Xcode 26) 导 .icon
-2. **Info.plist NSMotionUsageDescription 文案太硬** —— 改写更温柔 "Walk Up 用你早晨的几步关掉闹钟，不会保留任何记录。"
-3. **iOS 26 `.meshGradient` 是新 API**，旧 simulator 不支持 —— 真实机 iOS 26.6 才能完整跑；提交审核 iOS deployment target 调到 17 仍可
-4. **`xcrun altool` deprecation** —— Xcode 26 走 `xcrun notarytool` + App Store Connect API；查最新 upload 流程
-5. **Onboarding 文案英文** —— 准备 EN/中文两版，initial 推英文版（App Store 海外优先）
-6. **跨模型 review 真做了吗** —— D5 设 reminder 必切 GLM session（CLAUDE.md 反幻觉硬尺）
+**RootView 文件底部还保留一个 unused `BottomPill`/`PillItem` private struct**（RootView.swift:151-220）—— 是早期设计的 dead code，不影响运行；建议下次清理时一并删。
 
 ---
 
-## 8 · 需要杨总拍板 · **3 条 · 不阻塞 spec 落地**
+## 6 · 已知 gap · 不在当前实现里 · 但已设计好
 
-1. **App icon 拍板** —— 出日 + 脚印叠加 / 单纯日出 / 极简文字 "U" + sunrise 渐变 三选一（我推 **日出 + 脚印**）：哪个？
-2. **英文文案语气** —— 推 "Walk to wake up." tagline + "Wake up by walking." onboarding 头一句；还是更幽默走 alarm app 行话 (e.g. "Defeat the alarm")
-3. **Onboarding 3 步数据采集** —— 是否埋点 (Onboarding 完成率 / step where drop)？默认 **不埋点** (Privacy first)
+| 项 | 状态 | 影响 |
+|---|---|---|
+| **真 App icon PNG asset**（非 SwiftUI runtime 占位）| ❌ 只用 inline `RoundedRectangle.fill(sunriseGradient) + SF Symbol figure.walk` 临时渲染 | App Store 提交**必须**真 PNG asset 才能过 review |
+| **Streak / History 第 3 tab** | ❌ 未实现 | spec v0.2 §3 S4 跳过，按 5 天 timeline 暂缓 |
+| **Widget / Dynamic Island** | ❌ 未实现 | Dribbble 调研 §5.4 标注 D6+ post-launch |
+| **`EmergencyHoldButton` 真视觉反馈** | ⚠️ `LongPressGesture.onEnded` 已经触发 dismiss，但按下时**没有任何视觉进度** | 长按 3s 全屏没反馈，UX 弱；spec §4 S2 提到的"圆环同步 fill"未做 |
+| **Ringing 背景的 `meshGradient`** | ⚠️ 当前是 `LinearGradient`，因为 iOS 17 minimum target 不支持 mesh | 影响"质感"上限；iOS 18 deployment target 升级后才用 |
+| **App icon 真正 PNG asset + iOS 26 Icon Composer** | ❌ 没做 | 提交 review blocker |
+| **持久化 streak / past alarm fire log** | ❌ 未实现 | 用 `UserDefaults` 可加，支撑 Streak tab |
+| **Notification categories 注册 confirm in `StepUpApp.swift`** | ✅ 已注册 `STEPUP_ALARM` category + `STEPUP_DISMISS` action | done |
+| **真机端到端 walk test** | ✅ 18:14 motion dialog 弹出 + 杨总手动 tap 允许 | done |
+| **App Store metadata (英文文案 + ASO screenshot)** | ❌ 未做 | D5 review 时机 |
 
 ---
 
-## 9 · Reference
+## 7 · 5 个 micro-interaction · 已经在 code 跑的
 
-### 9.1 Dribbble 268 shot 调研精华（2026-07-17 · web-fetcher 抓 6 个公开 tag search）
+| # | 场景 | 设计 | 实现文件 |
+|---|---|---|---|
+| M1 | Time 字变化 | `.numericFlip()` —— `contentTransition(.numericText())` | Theme.swift:111, AlarmSetupView.swift:54 |
+| M2 | Steps preset 切换 | `withAnimation(Motion.spring)` + PresetChip sunrise-end fill + 副 number numericFlip | AlarmSetupView.swift:184 |
+| M3 | Day chip toggle | `withAnimation(Motion.quick)` + DayDot 圆点 sunriseEnd fill + blur halo 出现 | AlarmSetupView.swift:293 |
+| M4 | Enable pill 翻 | 自定义 track + knob offset(±9) + Motion.spring | AlarmSetupView.swift:414-431 |
+| M5 | Sunrise ring fill | `Color.sunriseGradient` stroke + rotation(-90°) + Motion.spring | AlarmRingingView.swift:171-201 |
+| M6 | Breath loop | 1.5s easeInOut breathScale 1.0→1.04 radial glow + ring scale | AlarmRingingView.swift:151-156 |
+| M7 | Progressive haptics | 4 buckets · light/medium/heavy/notification(success) | AlarmRingingView.swift:160-164 |
+| M8 | Goal burst | radial gradient overlay + Motion.spring fade + success haptic | AlarmRingingView.swift:60-69, 133-140 |
+| M9 | Tab switch | `.transition(.opacity)` + Motion.spring crossfade | RootView.swift:50-56 |
+| M10 | Page dots | Capsule width 8↔24 spring | OnboardingView.swift:71-85 |
 
-**6 个 tag 命中**：
-| Tag | Hits | 关键参考 |
+---
+
+## 8 · 流程闭环验证（已通过的）
+
+| 流程 | 验证 |
+|---|---|
+| Schedule alarm + fire + ringing 进入 | ✅ `AUTOTEST_SECONDS` env 触发 + onReceive `stepUpAlarmFired` |
+| Walk step counter 累加 | ✅ 真机 + CoreMotion + 已 granted motion |
+| Goal reached dismiss | ✅ LongPressGesture fallback path（视觉反馈待补）|
+| Cold start 触发 motion dialog | ✅ RootView bootstrapOnColdStart 主动 startUpdates |
+| Day chips 持久化 + reschedule | ✅ AlarmStore.didSet + hasLoaded flag |
+| Notification permission 一次性 prompt | ✅ Onboarding Step 1 合并触发 + complete safety net |
+| `walkup://test-fire` URL smoke-test | ✅ 在 `RootView.onOpenURL` 与 `StepUpApp.onOpenURL`（StepUpApp.swift:34-38）双注册 |
+
+---
+
+## 9 · 不做什么 · 已成 hard guard（再走 spec v0.2 §5 的 commitment）
+
+- ❌ 任何第三方字体 / icon / 动画库
+- ❌ 默认 `Form` / `Section` / `Label` / `Stepper` / `Toggle` / `Slider` / `DatePicker.wheel` 直接裸露
+- ❌ 默认 SwiftUI `TabView`（用自定义 ZStack + selectedTab state）
+- ❌ `.shadow()` —— 质感靠 gradient + ultraThinMaterial + stroke
+- ❌ `.easeInOut` 默认曲线（除 breath 一处）—— 用 spring
+
+---
+
+## 10 · Dribbble 调研存档（2026-07-17 agent 跑）
+
+`Sources/Dribbble/`（待建）or inline 留这里：
+
+**6 个 tag · 268 shot · 调研精华**：
+
+| Tag | Hits | 关键 reference |
 |---|---|---|
 | alarm-clock-app | 48 | Fireart-d iOS Alarm · uxcratelab AI Alarm · Glass alarm clock |
-| sleep-app | 43 | strangehelix asklepios/freud · Piqo Studio Sleep · Sleep Cycle 类不取 |
-| wake-up-app | 41 | karina_bondarenko Social Alarm · orenjistudio Smart Sleep |
-| morning-app | 46 | **karina_bondarenko Alarmi（最高密度）** · musemind AI Task |
-| step-counter | 42 | **DD_UIUX Fitness Tracker UI Kit** · thien91dn Dynamic Island · Asish Sunny 动效 |
-| wellness-app-ios | 48 | **asol_design / Anna Pastel UI（全 lavender 系）** · Tubik 微交互 |
+| sleep-app | 43 | strangehelix asklepios/freud · Piqo Studio |
+| wake-up-app | 41 | **karina_bondarenko Social Alarm** · orenjistudio Smart Sleep |
+| morning-app | 46 | **karina_bondarenko Alarmi（最高密度）** |
+| step-counter | 42 | **DD_UIUX Fitness Tracker UI Kit** · Asish Sunny 动效 |
+| wellness-app-ios | 48 | **asol_design / Anna Pastel UI（lavender 系）** · Tubik |
 
-**5 条对位启示**（agent §5）：
-1. **配色二元** — 起床/步数走 warm pastel（#faefd1 / #f4b69c / #fad3d1）；睡眠走 deep navy/midnight
-2. **ring dial + sunrise gradient + mission card** = 2024-2026 起床仪式感三件套（我们对）
-3. **社交 + Gamification** 差异化空缺（Alarmi/Social 派）→ V2 备选，本期不动产品
-4. **Widget / Dynamic Island** 是 iOS 化必做 → **推迟 D6+ post-launch**，不出现在 5 天 sprint
-5. **App Store Screenshots 单独设计**（Orix Creative / The Screenshot First Company）→ D5 实施
-
-**关键 designer follow 名单**：
-- karina_bondarenko · uxcratelab · asol_design (Anna) · strangehelix · DD_UIUX · Fireart-d · Tubik · phenomonstudio · ramotion · beTomorrow · piqostudio · orixcreative · Pralay Bera (REM Smart Alarm)
-
-### 9.2 Pinterest 抓取状态
-
-- ❌ Pinterest 未通（HTML 公开搜索页是 JS-hydrate，pin 列表走 GraphQL + 懒加载，未登录 403）
-- 📌 需要登录态：可走 `~/.local/share/uv/tools/.../webbridge` Chrome 复用（memory `webbridge-chrome-login-reuse.md` 验证过 minimax）—— D1 准备 Figma 时顺手装 B 登录
-
-### 9.3 行业 iOS 标杆对位（不开）
-
-- **Sleep Cycle** — dashboard chart 堆叠（明确不走）
-- **Pillow** — 拟物 + chart（明确不走）
-- **Alarmy** — 任务解锁（明确不走）
-- **Dawn / Rise / CARROT Alarm** — 视觉对位 sample（不 clone，参考配色 / motion / 文案）
-
-### 9.4 iOS 26 API（**能不用第三方库就能做出质感的关键**）
-- `.meshGradient` (iOS 18+) — 多点 mesh gradient，sunrise 的柔和色块过渡
-- `.symbolEffect(.pulse/.bounce/.variableColor)` — SF Symbol 的原生微动效
-- `.contentTransition(.numericText())` — 数字翻牌
-- `.sensoryFeedback` — 系统级 haptic
-- `TimelineView(.animation)` — 连续呼吸动画
-
-### 9.5 Apple WWDC26 Liquid Glass — 参考但不抄
-
-- iOS 26 的 Liquid Glass 是 Apple 自家 linear/conic gradient + ultraThinMaterial 的延伸
-- 我们做得更 editorial（手绘 + 大字 + 暖色）+ 不引第三方 ─ 比 Liquid Glass 更"独立 app"调性
+**Pinterest** ❌ 公开搜索页 JS-hydrate + GraphQL 懒加载，无登录 403（详见 §11）。
 
 ---
 
-## 10 · TODO（在杨总回 3 条前我能并行做的）
+## 11 · Open technical debt
 
-- [ ] Clean debug 残留（`motion=notDetermined (raw 0)` 那行 + `emergencyHold` binding 没用上的 dead state）
-- [ ] 准备 Figma mock S1 + S2（先文字 wireframe，D1 给图）
-- [ ] web-fetcher agent 抓 Dribbble / Pinterest 灵感 → enrich §9
-- [ ] 启动 cron：D5 周五 09:00 reminder 切 GLM session cross-review（防飘）
+| # | 项 | 推荐处理 |
+|---|---|---|
+| T1 | RootView.swift `BottomPill`/`PillItem` 是 dead code | `claude code` 里手动删 |
+| T2 | `EmergencyHoldButton` 缺按下时视觉进度 | 长按 3s 时长用 sunrise ring inner halo 同步 fill |
+| T3 | App icon 当前 `RoundedRectangle + SF Symbol` inline runtime | 用 Icon Composer (Xcode 26) 出真 PNG 多尺寸资产 |
+| T4 | iOS 17 deployment target 让 `meshGradient` 用不上 | 升 deployment target 到 18，或保留 LinearGradient 走柔和色块 |
+| T5 | App Store metadata (英文 ASO + 6.7"/6.1"/5.5" 截图) | D5 review |
+| T6 | Streak / History tab | D6+ post-launch |
+
+---
+
+## 12 · 引用规范
+
+代码引用格式：`文件:行号` —— 鼠标可点。例如 `Theme.swift:15` = `Sources/Theme.swift` 第 15 行。
