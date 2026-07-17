@@ -33,6 +33,41 @@ struct Alarm: Codable, Identifiable, Equatable {
         let jitter = Int.random(in: -3...5)
         return max(Self.minSteps, min(Self.maxSteps, base + jitter))
     }
+
+    /// Next date the alarm will fire, considering `enabled` + `repeatDays`.
+    /// Returns nil when the alarm is disabled or has no repeat days.
+    ///
+    /// `repeatDays` uses 1=Mon..7=Sun (see Models.swift header). Calendar's
+    /// `weekday` uses 1=Sun..7=Sat. The mapping is `mappedDay = (weekday + 5) % 7 + 1`.
+    func nextFireDate(after reference: Date = Date()) -> Date? {
+        guard enabled, !repeatDays.isEmpty else { return nil }
+
+        let calendar = Calendar.current
+        let timeComps = calendar.dateComponents([.hour, .minute], from: time)
+
+        // Scan up to 8 days ahead — covers a full week plus a buffer.
+        for offset in 0..<8 {
+            guard let dayAnchor = calendar.date(byAdding: .day, value: offset, to: reference) else {
+                continue
+            }
+            let weekday = calendar.component(.weekday, from: dayAnchor)
+            let mappedDay = ((weekday + 5) % 7) + 1
+            guard repeatDays.contains(mappedDay) else { continue }
+
+            guard let candidate = calendar.date(
+                bySettingHour: timeComps.hour ?? 7,
+                minute: timeComps.minute ?? 0,
+                second: 0,
+                of: dayAnchor
+            ) else { continue }
+
+            // Skip today's slot if it's already past.
+            if candidate > reference {
+                return candidate
+            }
+        }
+        return nil
+    }
 }
 
 /// Persists the current alarm in UserDefaults. Single-alarm app for v1.

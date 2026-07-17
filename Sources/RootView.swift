@@ -1,6 +1,7 @@
 //
 //  RootView.swift
-//  StepUp — top-level view that switches between Setup and Ringing states.
+//  StepUp — top-level view. Switches between Setup/Ringing/About + a custom
+//  bottom floating pill (no default TabView per DESIGN_SPEC §5).
 //
 
 import SwiftUI
@@ -16,9 +17,17 @@ struct RootView: View {
     @State private var isRinging: Bool = false
     /// Steps required for THIS ringing (random per fire = anti-cheat).
     @State private var requiredSteps: Int = 0
+    /// Which non-ringing screen is on top of the ZStack.
+    @State private var selectedTab: Tab = .alarm
+    /// First-launch onboarding flag — flips to true and stays persisted.
+    @State private var hasOnboarded: Bool = UserDefaults.standard.bool(forKey: "stepup.onboarded.v1")
+
+    enum Tab: Hashable { case alarm, about }
 
     var body: some View {
         ZStack {
+            Color.sky.ignoresSafeArea()
+
             if isRinging {
                 AlarmRingingView(
                     requiredSteps: requiredSteps,
@@ -27,48 +36,78 @@ struct RootView: View {
                 )
                 .transition(.opacity)
             } else {
-                TabView {
-                    AlarmSetupView(onRingingStarted: startRinging)
-                        .tabItem { Label("Alarm", systemImage: "alarm.fill") }
-                    AboutView()
-                        .tabItem { Label("About", systemImage: "info.circle") }
+                // Background tab content — crossfade when switching.
+                ZStack {
+                    switch selectedTab {
+                    case .alarm:
+                        AlarmSetupView(onRingingStarted: startRinging)
+                            .transition(.opacity)
+                    case .about:
+                        AboutView()
+                            .transition(.opacity)
+                    }
                 }
+                .animation(reduceMotion ? nil : Motion.spring, value: selectedTab)
+
+                // Bottom floating pill — hidden during ringing.
+                VStack {
+                    Spacer()
+                    BottomPill(selected: $selectedTab)
+                        .padding(.bottom, Spacing.xs)
+                        .padding(.horizontal, Spacing.l)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+                .animation(reduceMotion ? nil : Motion.spring, value: isRinging)
             }
         }
-        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: isRinging)
+        .animation(reduceMotion ? nil : Motion.spring, value: isRinging)
         .sensoryFeedback(.warning, trigger: stepCounter.currentSteps)
-        .task {
-            await requestPermissionsIfNeeded()
-
-            // Proactively trigger the Motion & Fitness permission dialog on
-            // first launch if the user hasn't decided yet. Without this, the
-            // user can launch the app, glance at the alarm-setup screen, and
-            // never see the system permission prompt — which silently breaks
-            // step counting. Starting pedometer updates with an empty handler
-            // and stopping immediately is enough to surface the system prompt
-            // while we ignore any callback noise.
-            let status = CMPedometer.authorizationStatus()
-            if status == .notDetermined {
-                let trigger = CMPedometer()
-                trigger.startUpdates(from: Date()) { _, _ in }
-                trigger.stopUpdates()
-            }
-
-            // Smoke-test hook: when `AUTOTEST_SECONDS` is set in the launch
-            // environment, schedule an alarm that fires `N`s from now so
-            // headless verification can exercise willPresent + didReceive
-            // without touching the time-picker UI. No-op when the env var
-            // is absent.
-            if let s = ProcessInfo.processInfo.environment["AUTOTEST_SECONDS"],
-               let seconds = Double(s) {
-                try? await AlarmScheduler.scheduleAutotest(
-                    after: seconds,
-                    stepCount: alarmStore.alarm.stepCount
-                )
-            }
-        }
+        .task { await requestPermissionsIfNeededAndBootstrap() }
         .onReceive(NotificationCenter.default.publisher(for: .stepUpAlarmFired)) { _ in
             startRinging()
+        }
+        .overlay {
+            if !hasOnboarded {
+                OnboardingView(isPresented: Binding(
+                    get: { !hasOnboarded },
+                    set: { newValue in hasOnboarded = !newValue }
+                ))
+                .transition(.opacity)
+                .zIndex(100)
+            }
+        }
+    }
+
+    /// Combined first-launch bootstrap: permissions, motion probe, autotest.
+    /// Split out of the inline `.task` so the body reads as composition only.
+    private func requestPermissionsIfNeededAndBootstrap() async {
+        await requestPermissionsIfNeeded()
+
+        // Proactively trigger the Motion & Fitness permission dialog on
+        // first launch if the user hasn't decided yet. Without this, the
+        // user can launch the app, glance at the alarm-setup screen, and
+        // never see the system permission prompt — which silently breaks
+        // step counting. Starting pedometer updates with an empty handler
+        // and stopping immediately is enough to surface the system prompt
+        // while we ignore any callback noise.
+        let status = CMPedometer.authorizationStatus()
+        if status == .notDetermined {
+            let trigger = CMPedometer()
+            trigger.startUpdates(from: Date()) { _, _ in }
+            trigger.stopUpdates()
+        }
+
+        // Smoke-test hook: when `AUTOTEST_SECONDS` is set in the launch
+        // environment, schedule an alarm that fires `N`s from now so
+        // headless verification can exercise willPresent + didReceive
+        // without touching the time-picker UI. No-op when the env var
+        // is absent.
+        if let s = ProcessInfo.processInfo.environment["AUTOTEST_SECONDS"],
+           let seconds = Double(s) {
+            try? await AlarmScheduler.scheduleAutotest(
+                after: seconds,
+                stepCount: alarmStore.alarm.stepCount
+            )
         }
     }
 
@@ -103,4 +142,78 @@ struct RootView: View {
 /// Posted by the app's UNUserNotificationCenter delegate when the alarm fires and the app is foregrounded.
 extension Notification.Name {
     static let stepUpAlarmFired = Notification.Name("stepUpAlarmFired")
+}
+
+// MARK: - Bottom floating pill
+
+private struct BottomPill: View {
+    @Binding var selected: RootView.Tab
+
+    var body: some View {
+        HStack(spacing: Spacing.xs) {
+            PillItem(
+                label: "Alarm",
+                systemImage: "figure.walk.motion",
+                isSelected: selected == .alarm
+            ) {
+                withAnimation(Motion.spring) { selected = .alarm }
+            }
+            PillItem(
+                label: "About",
+                systemImage: "info.circle.fill",
+                isSelected: selected == .about
+            ) {
+                withAnimation(Motion.spring) { selected = .about }
+            }
+        }
+        .padding(Spacing.xs)
+        .background(
+            Capsule().fill(Color.surface.opacity(0.85))
+        )
+        .overlay(
+            Capsule().stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
+        // Subtle inner glow on the selected half — sunrise tint, no shadow.
+        .background(
+            Capsule()
+                .stroke(Color.sunriseEnd.opacity(0.35), lineWidth: 0.5)
+                .blur(radius: 4)
+                .padding(-2)
+                .opacity(selected == .alarm ? 1 : 0)
+        )
+    }
+}
+
+private struct PillItem: View {
+    let label: String
+    let systemImage: String
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 16, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(isSelected ? Color.sunriseEnd : Color.textSecondary)
+                    .contentTransition(.symbolEffect(.replace))
+                if isSelected {
+                    Text(label)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.textPrimary)
+                        .transition(.opacity)
+                }
+            }
+            .padding(.horizontal, isSelected ? Spacing.m : Spacing.s)
+            .padding(.vertical, Spacing.s)
+            .background(
+                Capsule()
+                    .fill(isSelected ? Color.white.opacity(0.10) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
 }

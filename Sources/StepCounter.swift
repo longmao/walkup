@@ -18,6 +18,7 @@ final class StepCounter: ObservableObject {
 
     private let pedometer = CMPedometer()
     private var startDate: Date?
+    private var lastReportedSteps = 0
 
     init() {
         authorizationStatus = CMPedometer.authorizationStatus()
@@ -26,6 +27,10 @@ final class StepCounter: ObservableObject {
     /// Start counting from now. Permission is requested implicitly by `startUpdates`
     /// (system presents the prompt the first time the user takes steps under the alarm).
     func begin() {
+        guard !isCounting else {
+            NSLog("[StepCounter] begin ignored — already counting")
+            return
+        }
         authorizationStatus = CMPedometer.authorizationStatus()
         startCounting()
     }
@@ -36,6 +41,7 @@ final class StepCounter: ObservableObject {
         // implicitly triggers the NSMotionUsageDescription prompt on first use).
         if ProcessInfo.processInfo.environment["AUTOTEST_NO_MOTION"] != nil {
             currentSteps = 0
+            lastReportedSteps = 0
             startDate = Date()
             isCounting = true
             NSLog("[StepCounter] AUTOTEST_NO_MOTION — skipped CMPedometer call")
@@ -48,6 +54,7 @@ final class StepCounter: ObservableObject {
         }
 
         currentSteps = 0
+        lastReportedSteps = 0
         startDate = Date()
         isCounting = true
         authorizationStatus = CMPedometer.authorizationStatus()
@@ -65,8 +72,14 @@ final class StepCounter: ObservableObject {
             }
             let count = data.numberOfSteps.intValue
             DispatchQueue.main.async {
-                NSLog("[StepCounter] update — steps=\(count)")
-                self.currentSteps = count
+                guard self.isCounting else { return }
+
+                let delta = count - self.lastReportedSteps
+                guard delta > 0 else { return }
+
+                self.lastReportedSteps = count
+                self.currentSteps += delta
+                NSLog("[StepCounter] update — reported=\(count) delta=\(delta) total=\(self.currentSteps)")
             }
         }
         NSLog("[StepCounter] startUpdates returned \(didStart)")

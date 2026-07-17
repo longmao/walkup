@@ -13,6 +13,8 @@
 		413DAE4795D1A51641D30919 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7457509A2711C8263D2C0A76 /* RootView.swift */; };
 		7FB671E4E8035F4F2E147290 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9F15974D3C5261D48DC7AFD4 /* Assets.xcassets */; };
 		8B6DAB86BE3234FC341475FD /* StepUpApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1963BD0E5D055FE05B116CF9 /* StepUpApp.swift */; };
+		A1B2C3D4E5F6789012345678 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F67890123456789A /* Theme.swift */; };
+		C3D4E5F67890123456789ABC /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F67890123456789ABCD1 /* OnboardingView.swift */; };
 		A8C32CEC8E1E824DFC73EA7F /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 684463ADCEDFF9E8F0F2861D /* AboutView.swift */; };
 		DB4BE8FC28E0A232F663F1D2 /* StepCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10ABC942FE58743153026A0 /* StepCounter.swift */; };
 		F086686D7FE3F6E70DB23C92 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21154381D4DAA61DDA19E81C /* Models.swift */; };
@@ -28,6 +30,8 @@
 		7457509A2711C8263D2C0A76 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		9F15974D3C5261D48DC7AFD4 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9F2E8EB67894D0D7A0E4D4CD /* AlarmRingingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmRingingView.swift; sourceTree = "<group>"; };
+		B2C3D4E5F67890123456789A /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		D4E5F67890123456789ABCD1 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		BF64FF4E698362BEF7FC7D66 /* AlarmSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmSound.swift; sourceTree = "<group>"; };
 		DD61C92AC78E60953F48AD31 /* AlarmSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmSetupView.swift; sourceTree = "<group>"; };
 		E10ABC942FE58743153026A0 /* StepCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCounter.swift; sourceTree = "<group>"; };
@@ -44,6 +48,8 @@
 				BF64FF4E698362BEF7FC7D66 /* AlarmSound.swift */,
 				21154381D4DAA61DDA19E81C /* Models.swift */,
 				7457509A2711C8263D2C0A76 /* RootView.swift */,
+				B2C3D4E5F67890123456789A /* Theme.swift */,
+				D4E5F67890123456789ABCD1 /* OnboardingView.swift */,
 				E10ABC942FE58743153026A0 /* StepCounter.swift */,
 				1963BD0E5D055FE05B116CF9 /* StepUpApp.swift */,
 			);
@@ -139,6 +145,8 @@
 				0875621AA862E69688264DDB /* AlarmSound.swift in Sources */,
 				F086686D7FE3F6E70DB23C92 /* Models.swift in Sources */,
 				413DAE4795D1A51641D30919 /* RootView.swift in Sources */,
+				A1B2C3D4E5F6789012345678 /* Theme.swift in Sources */,
+				C3D4E5F67890123456789ABC /* OnboardingView.swift in Sources */,
 				DB4BE8FC28E0A232F663F1D2 /* StepCounter.swift in Sources */,
 				8B6DAB86BE3234FC341475FD /* StepUpApp.swift in Sources */,
 			);

@@ -1,62 +1,184 @@
 //
 //  AboutView.swift
-//  StepUp — privacy, data practices, credits.
+//  StepUp — brand narrative (DESIGN_SPEC §3 S4).
+//
+//  No Form / Section / Label. Free composition: hero, four feature cards,
+//  legal/credits footer.
 //
 
 import SwiftUI
 
 struct AboutView: View {
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    Label("Free forever", systemImage: "heart.fill")
-                    Label("No ads", systemImage: "nosign")
-                    Label("No subscription", systemImage: "creditcard.trianglebadge.exclamationmark")
-                    Label("No tracking", systemImage: "eye.slash")
-                } header: {
-                    Text("Walk Up")
-                } footer: {
-                    Text("Walk Up is free, with no ads and no in-app purchases. The only data we touch is your step count, and only while the alarm is ringing.")
-                }
+        ZStack {
+            Color.sky.ignoresSafeArea()
 
-                Section("Privacy") {
-                    Link(destination: URL(string: "https://longmao.github.io/walkup-privacy/")!) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    Spacer().frame(height: 56)
+
+                    // ── Hero ────────────────────────────────────────────────────
+                    heroSection
+
+                    // ── Four promises ───────────────────────────────────────────
+                    VStack(spacing: Spacing.m) {
+                        FeatureRow(
+                            systemImage: "heart.fill",
+                            title: "Free forever",
+                            detail: "No subscription, no IAP, no tip jar. Brand promise — never paywalls."
+                        )
+                        FeatureRow(
+                            systemImage: "eye.slash.fill",
+                            title: "No tracking",
+                            detail: "Steps never leave your device. Local-only."
+                        )
+                        FeatureRow(
+                            systemImage: "figure.walk",
+                            title: "CoreMotion",
+                            detail: "Hardware step counter. Reliable, no flaky camera tricks."
+                        )
+                        FeatureRow(
+                            systemImage: "lock.shield.fill",
+                            title: "Open about it",
+                            detail: "Source available. Privacy policy on longmao.github.io."
+                        )
+                    }
+
+                    // ── Footer ──────────────────────────────────────────────────
+                    VStack(alignment: .leading, spacing: Spacing.m) {
+                        Text("LEGAL & LINKS")
+                            .eyebrow()
+
+                        LinkRow(
+                            systemImage: "doc.text",
+                            label: "Privacy policy",
+                            url: URL(string: "https://longmao.github.io/walkup-privacy/")!
+                        )
+                        LinkRow(
+                            systemImage: "questionmark.circle",
+                            label: "Support",
+                            url: URL(string: "https://longmao.github.io/walkup-privacy/")!
+                        )
                         HStack {
-                            Label("Privacy policy", systemImage: "doc.text")
+                            Text("Version")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color.textSecondary)
                             Spacer()
-                            Image(systemName: "arrow.up.right.square")
-                                .foregroundStyle(.secondary)
+                            Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
+                                .font(.system(size: 14, weight: .semibold).monospacedDigit())
+                                .foregroundStyle(Color.textPrimary)
                         }
+                        .padding(.horizontal, Spacing.m)
+                        .frame(height: 44)
+                        .background(Color.surface, in: RoundedRectangle(cornerRadius: Radius.button))
                     }
-                    .accessibilityLabel("View privacy policy")
-                    Link(destination: URL(string: "https://longmao.github.io/walkup-privacy/")!) {
-                        HStack {
-                            Label("Support", systemImage: "questionmark.circle")
-                            Spacer()
-                            Image(systemName: "arrow.up.right.square")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .accessibilityLabel("Get support")
-                }
 
-                Section("How it works") {
-                    Label("CoreMotion counts your steps in real time.", systemImage: "figure.walk")
-                    Label("Steps never leave your device.", systemImage: "lock.shield")
-                    Label("You can long-press 3s to dismiss without walking.", systemImage: "hand.tap")
+                    // Bottom safe area so the floating pill doesn't clip content.
+                    Color.clear.frame(height: 96)
                 }
-
-                Section {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                .padding(.horizontal, Spacing.l)
             }
-            .navigationTitle("About")
+            .scrollIndicators(.hidden)
         }
+    }
+
+    // MARK: - Hero
+
+    private var heroSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            // App icon — square 88pt with corner radius matching iOS conventions.
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.sunriseGradient)
+                .frame(width: 88, height: 88)
+                .overlay(
+                    Image(systemName: "figure.walk")
+                        .font(.system(size: 38, weight: .heavy))
+                        .foregroundStyle(Color.textPrimary)
+                )
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Walk Up")
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color.textPrimary)
+                Text("Walk to wake up.")
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundStyle(Color.textSecondary)
+                Text("An alarm you can't snooze — because to dismiss it you have to walk. Hardware-pedometer reliable, anti-cheat jitter per fire, no subscription, ever.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.top, Spacing.xs)
+            }
+        }
+    }
+}
+
+// MARK: - Feature row
+
+private struct FeatureRow: View {
+    let systemImage: String
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.m) {
+            Image(systemName: systemImage)
+                .font(.system(size: 22, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Color.sunriseEnd)
+                .frame(width: 32, height: 32)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.textPrimary)
+                Text(detail)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(Spacing.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.surface, in: RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Link row
+
+private struct LinkRow: View {
+    let systemImage: String
+    let label: String
+    let url: URL
+
+    var body: some View {
+        Link(destination: url) {
+            HStack(spacing: Spacing.s) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 16, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.sunriseEnd)
+                Text(label)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.textPrimary)
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.textSecondary)
+            }
+            .padding(.horizontal, Spacing.m)
+            .frame(height: 44)
+            .background(Color.surface, in: RoundedRectangle(cornerRadius: Radius.button))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.button)
+                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
