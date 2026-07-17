@@ -234,15 +234,16 @@ private struct EmergencyHoldButton: View {
     @State private var didFire: Bool = false
 
     var body: some View {
-        VStack(spacing: Spacing.s) {
-            Text("Can't walk?")
-                .font(.system(size: 13))
+        VStack(spacing: Spacing.xs) {
+            // Eyebrow label — surfaces the fallback path so users who can't walk find it.
+            Text("IF YOU CAN'T WALK")
+                .eyebrow()
                 .foregroundStyle(Color.textSecondary)
 
             // Custom button: thin capsule with stroke-fill that tracks the long-press.
             ZStack {
                 Capsule()
-                    .fill(Color.well.opacity(0.45))
+                    .fill(Color.well.opacity(0.6))
                 Capsule()
                     .trim(from: 0, to: holdProgress)
                     .fill(Color.emergency.opacity(0.85))
@@ -251,13 +252,13 @@ private struct EmergencyHoldButton: View {
                     Image(systemName: "hand.tap.fill")
                         .font(.system(size: 16, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
-                    Text("Hold 3s to dismiss")
+                    Text("Long-press 3s to dismiss")
                         .font(.system(size: 15, weight: .semibold))
                 }
                 .foregroundStyle(Color.textPrimary)
             }
             .frame(height: 56)
-            .overlay(Capsule().stroke(Color.white.opacity(0.06), lineWidth: 1))
+            .overlay(Capsule().stroke(Color.textTertiary.opacity(0.4), lineWidth: 1))
             .contentShape(Capsule())
             .gesture(
                 LongPressGesture(minimumDuration: 3.0)
@@ -275,7 +276,7 @@ private struct EmergencyHoldButton: View {
                         onDismiss()
                     }
             )
-            .accessibilityLabel("Hold 3 seconds to dismiss")
+            .accessibilityLabel("Long-press 3 seconds to dismiss")
         }
         .onAppear { holdProgress = 0 }
     }

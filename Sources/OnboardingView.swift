@@ -190,11 +190,11 @@ private struct TestStep: View {
     let onComplete: () -> Void
 
     var body: some View {
-        VStack(spacing: Spacing.xl) {
-            Spacer()
+        VStack(spacing: Spacing.l) {
+            Spacer(minLength: Spacing.m)
 
             Image(systemName: "alarm.waves.left.and.right.fill")
-                .font(.system(size: 88, weight: .light))
+                .font(.system(size: 64, weight: .light))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(Color.sunriseEnd)
 
@@ -210,12 +210,123 @@ private struct TestStep: View {
                     .padding(.horizontal, Spacing.l)
             }
 
-            Spacer()
+            // Visual demo of the walk-to-dismiss flow. Three cards stacked
+            // vertically show exactly what the user will experience when the
+            // alarm goes off: sound → walk → stop. Anchors the top concern
+            // ("what does it actually look like?") before the CTA.
+            WalkDemo()
+                .padding(.horizontal, Spacing.l)
+
+            Spacer(minLength: 0)
 
             PillButton(title: "You're all set ✓", systemImage: "checkmark.circle.fill", action: onComplete)
                 .padding(.horizontal, Spacing.l)
                 .padding(.bottom, Spacing.xxl)
         }
+    }
+}
+
+// MARK: - Walk demo (Onboarding §3)
+
+/// A 3-step vertical walkthrough of the alarm flow. Each row is a numbered
+/// chip + title + sub-line, vertically chained by a thin rail so it reads as
+/// one sequence rather than three loose items.
+private struct WalkDemo: View {
+    private let steps: [DemoStep] = [
+        .init(
+            number: "1",
+            icon: "alarm.fill",
+            title: "Alarm fires",
+            subtitle: "Sound + sunrise ring",
+            tint: .sunriseEnd
+        ),
+        .init(
+            number: "2",
+            icon: "figure.walk",
+            title: "Walk",
+            subtitle: "Counter ticks from 10 to 100",
+            tint: .steady
+        ),
+        .init(
+            number: "3",
+            icon: "checkmark.circle.fill",
+            title: "Alarm stops",
+            subtitle: "Tap dismiss once you reach the goal",
+            tint: .goal
+        ),
+    ]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(steps.enumerated()), id: \.offset) { idx, step in
+                DemoRow(step: step, isLast: idx == steps.count - 1)
+            }
+        }
+        .padding(.vertical, Spacing.s)
+        .padding(.horizontal, Spacing.m)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .fill(Color.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+        )
+    }
+}
+
+private struct DemoStep {
+    let number: String
+    let icon: String
+    let title: String
+    let subtitle: String
+    let tint: Color
+}
+
+private struct DemoRow: View {
+    let step: DemoStep
+    let isLast: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.m) {
+            // Numbered chip + vertical rail connector between rows.
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(step.tint.opacity(0.18))
+                        .frame(width: 40, height: 40)
+                    Text(step.number)
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
+                        .foregroundStyle(step.tint)
+                }
+                if !isLast {
+                    Rectangle()
+                        .fill(Color.well)
+                        .frame(width: 2, height: 18)
+                }
+            }
+            .frame(width: 40)
+
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: step.icon)
+                        .font(.system(size: 15, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(step.tint)
+                    Text(step.title)
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .foregroundStyle(Color.textPrimary)
+                }
+                Text(step.subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, Spacing.xs)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.bottom, isLast ? 0 : Spacing.xs)
     }
 }
 
