@@ -9,9 +9,30 @@
 import SwiftUI
 
 struct AboutView: View {
+    var onBack: () -> Void = {}
+
     var body: some View {
         ZStack {
             Color.sky.ignoresSafeArea()
+
+            // Top-left back button — replaces the removed RootView bottom pill.
+            VStack {
+                HStack {
+                    Button(action: onBack) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(Color.textPrimary)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .accessibilityLabel("Back to alarm")
+                    Spacer()
+                }
+                .padding(.horizontal, Spacing.m)
+                .padding(.top, Spacing.xs)
+                Spacer()
+            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.xl) {

@@ -36,28 +36,24 @@ struct RootView: View {
                 )
                 .transition(.opacity)
             } else {
-                // Background tab content — crossfade when switching.
+                // Background tab content — crossfade when switching. The tab
+                // navigation now lives inside each screen (info button on
+                // setup, back button on about) instead of a floating pill so
+                // nothing overlaps the action bar.
                 ZStack {
                     switch selectedTab {
                     case .alarm:
-                        AlarmSetupView(onRingingStarted: startRinging)
-                            .transition(.opacity)
+                        AlarmSetupView(
+                            onRingingStarted: startRinging,
+                            onShowAbout: { selectedTab = .about }
+                        )
+                        .transition(.opacity)
                     case .about:
-                        AboutView()
+                        AboutView(onBack: { selectedTab = .alarm })
                             .transition(.opacity)
                     }
                 }
                 .animation(reduceMotion ? nil : Motion.spring, value: selectedTab)
-
-                // Bottom floating pill — hidden during ringing.
-                VStack {
-                    Spacer()
-                    BottomPill(selected: $selectedTab)
-                        .padding(.bottom, Spacing.xs)
-                        .padding(.horizontal, Spacing.l)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
-                .animation(reduceMotion ? nil : Motion.spring, value: isRinging)
             }
         }
         .animation(reduceMotion ? nil : Motion.spring, value: isRinging)

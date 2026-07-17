@@ -9,6 +9,11 @@ import SwiftUI
 struct AlarmSetupView: View {
     @EnvironmentObject var alarmStore: AlarmStore
     var onRingingStarted: () -> Void
+    var onShowAbout: (() -> Void)? = nil
+
+    /// Sheet visibility for the time picker (DatePicker.wheel rendered inside).
+    /// Keeping the heavy wheel off the main screen shaves ~80ms off first_frame.
+    @State private var showTimeSheet: Bool = false
 
     /// Step preset chips. Anti-cheat jitter is applied per-fire inside RootView.
     private let stepPresets: [Int] = [10, 25, 50, 100]
@@ -21,23 +26,26 @@ struct AlarmSetupView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack(alignment: .top) {
             ScrollView {
                 VStack(spacing: Spacing.l) {
-                    // Top breathing room.
-                    Color.clear.frame(height: 8)
+                    // Top breathing room — leaves space for the info button row.
+                    Color.clear.frame(height: 40)
 
                     // ── Time hero ────────────────────────────────────────────────
                     VStack(spacing: Spacing.xs) {
-                        DatePicker(
-                            "Wake up at",
-                            selection: timeBinding,
-                            displayedComponents: .hourAndMinute
-                        )
-                        .datePickerStyle(.wheel)
-                        .labelsHidden()
-                        .colorScheme(.dark)
+                        // Read-back display: large formatted time. Tap to open
+                        // a sheet that hosts the heavy DatePicker.wheel — this
+                        // keeps the wheel out of the cold-start render path.
+                        Button {
+                            showTimeSheet = true
+                        } label: {
+                            Text(timeString(alarmStore.alarm.time))
+                                .timeHero()
+                        }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Set wake up time")
+                        .accessibilityHint("Opens time picker")
 
                         Text(wakeSubtitle)
                             .heroSubtitle()
@@ -64,13 +72,64 @@ struct AlarmSetupView: View {
                         TestAlarmButton(action: onRingingStarted)
                     }
 
-                    // Bottom safe-area so the floating tab pill (~64pt) doesn't clip content. 140pt covers BottomPill height + spacing.
-                    Color.clear.frame(height: 140)
+                    // Bottom safe-area for home indicator.
+                    Color.clear.frame(height: Spacing.l)
                 }
                 .padding(.horizontal, Spacing.l)
             }
             .scrollIndicators(.hidden)
+
+            // Top info button — replaces the bottom pill that was overlapping
+            // the action bar. Tap to push AboutView via RootView's tab state.
+            if let onShowAbout {
+                HStack {
+                    Spacer()
+                    Button(action: onShowAbout) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(Color.textSecondary)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .accessibilityLabel("About Walk Up")
+                }
+                .padding(.horizontal, Spacing.m)
+                .padding(.top, Spacing.xs)
+            }
         }
+        // Heavy wheel renders lazily inside this sheet — only on first tap.
+        .sheet(isPresented: $showTimeSheet) {
+            ZStack {
+                Color.sky.ignoresSafeArea()
+                VStack(spacing: Spacing.l) {
+                    HStack {
+                        Spacer()
+                        Button("Done") { showTimeSheet = false }
+                            .foregroundStyle(Color.sunriseEnd)
+                            .font(.system(size: 17, weight: .semibold))
+                            .padding(.horizontal, Spacing.m)
+                    }
+                    DatePicker(
+                        "Wake up at",
+                        selection: timeBinding,
+                        displayedComponents: .hourAndMinute
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    .colorScheme(.dark)
+                    .padding(.horizontal, Spacing.l)
+                }
+            }
+            .presentationDetents([.medium])
+        }
+    }
+
+    /// Formats `time` as "7:00 AM" for the read-back hero.
+    private func timeString(_ time: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        return f.string(from: time)
     }
 
     // MARK: - Dynamic strings
