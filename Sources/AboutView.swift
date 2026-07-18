@@ -107,15 +107,13 @@ struct AboutView: View {
 
     private var heroSection: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
-            // App icon — square 88pt with corner radius matching iOS conventions.
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.sunriseGradient)
+            // App icon — pulls the asset-catalog version so the brand surface
+            // matches the home-screen icon pixel-for-pixel.
+            Image("AppIcon")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
                 .frame(width: 88, height: 88)
-                .overlay(
-                    Image(systemName: "figure.walk")
-                        .font(.system(size: 38, weight: .heavy))
-                        .foregroundStyle(Color.textPrimary)
-                )
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Walk Up")

@@ -89,41 +89,76 @@ private struct PageDots: View {
 private struct WelcomeStep: View {
     let onNext: () -> Void
 
+    /// Inline "how it works" preview so the user sees set-up → walk → stop
+    /// before they ever tap *Get started*. Same vertical-rail DemoRow format
+    /// used in `TestStep.WalkDemo`, just three short lines so the page
+    /// stays one-screen.
+    private let preview: [DemoStep] = [
+        .init(
+            number: "1",
+            icon: "alarm.fill",
+            title: "Set your wake-up time",
+            subtitle: "Pick time, step goal, repeat days",
+            tint: .sunriseEnd
+        ),
+        .init(
+            number: "2",
+            icon: "figure.walk",
+            title: "Walk to dismiss",
+            subtitle: "10-100 steps, randomized per fire",
+            tint: .steady
+        ),
+        .init(
+            number: "3",
+            icon: "checkmark.circle.fill",
+            title: "Tap stop once reached",
+            subtitle: "Long-press 3s as fallback",
+            tint: .goal
+        ),
+    ]
+
     var body: some View {
-        VStack(spacing: Spacing.xl) {
-            Spacer()
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: Spacing.l) {
+                Spacer().frame(height: Spacing.l)
 
-            // Editorial sunrise hero — concentric circles evoke a rising sun.
-            ZStack {
-                Circle()
-                    .fill(Color.sunriseEnd.opacity(0.15))
-                    .frame(width: 220, height: 220)
-                Circle()
-                    .fill(Color.sunriseMid.opacity(0.30))
-                    .frame(width: 140, height: 140)
-                Circle()
-                    .fill(Color.sunriseEnd)
-                    .frame(width: 60, height: 60)
-                    .blur(radius: 6)
-            }
+                // Editorial sunrise hero — concentric circles evoke a rising sun.
+                ZStack {
+                    Circle()
+                        .fill(Color.sunriseEnd.opacity(0.15))
+                        .frame(width: 180, height: 180)
+                    Circle()
+                        .fill(Color.sunriseMid.opacity(0.30))
+                        .frame(width: 116, height: 116)
+                    Circle()
+                        .fill(Color.sunriseEnd)
+                        .frame(width: 50, height: 50)
+                        .blur(radius: 6)
+                }
 
-            VStack(spacing: Spacing.s) {
-                Text("Wake up by walking.")
-                    .font(.system(size: 34, weight: .heavy, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Color.textPrimary)
-                Text("Free forever. No ads. No tracking. The only data we touch is your step count, and only while the alarm is ringing.")
-                    .font(.system(size: 15))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Color.textSecondary)
+                VStack(spacing: Spacing.s) {
+                    Text("Wake up by walking.")
+                        .font(.system(size: 30, weight: .heavy, design: .rounded))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color.textPrimary)
+                    Text("Free forever. No ads. No tracking. The only data we touch is your step count, and only while the alarm is ringing.")
+                        .font(.system(size: 14))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(Color.textSecondary)
+                        .padding(.horizontal, Spacing.l)
+                }
+
+                // Inline how-to preview — surface card with three numbered
+                // rows. Anchors the user's "how do I actually use this?"
+                // question before they ever leave the welcome screen.
+                WalkDemo(steps: preview)
                     .padding(.horizontal, Spacing.l)
+
+                PillButton(title: "Get started", action: onNext)
+                    .padding(.horizontal, Spacing.l)
+
+                Spacer().frame(height: Spacing.s)
             }
-
-            Spacer()
-
-            PillButton(title: "Get started", action: onNext)
-                .padding(.horizontal, Spacing.l)
-                .padding(.bottom, Spacing.xxl)
         }
     }
 }
@@ -214,7 +249,7 @@ private struct TestStep: View {
             // vertically show exactly what the user will experience when the
             // alarm goes off: sound → walk → stop. Anchors the top concern
             // ("what does it actually look like?") before the CTA.
-            WalkDemo()
+            WalkDemo(steps: WalkDemo.testFlow)
                 .padding(.horizontal, Spacing.l)
 
             Spacer(minLength: 0)
@@ -232,7 +267,12 @@ private struct TestStep: View {
 /// chip + title + sub-line, vertically chained by a thin rail so it reads as
 /// one sequence rather than three loose items.
 private struct WalkDemo: View {
-    private let steps: [DemoStep] = [
+    let steps: [DemoStep]
+
+    /// Default test-flow steps used by `TestStep`. Kept here so the welcome
+    /// landing can compose its own (lighter) preview list without copying
+    /// the layout primitives.
+    static let testFlow: [DemoStep] = [
         .init(
             number: "1",
             icon: "alarm.fill",

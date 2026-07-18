@@ -8,12 +8,21 @@ import SwiftUI
 
 struct AlarmSetupView: View {
     @EnvironmentObject var alarmStore: AlarmStore
+    @Environment(\.scenePhase) private var scenePhase
     var onRingingStarted: () -> Void
     var onShowAbout: (() -> Void)? = nil
 
     /// Sheet visibility for the time picker (DatePicker.wheel rendered inside).
     /// Keeping the heavy wheel off the main screen shaves ~80ms off first_frame.
     @State private var showTimeSheet: Bool = false
+
+    /// Live "now" timestamp — drives `wakeSubtitle` / `nextFireSubtitle`
+    /// relative-time strings. Without observing this, returning to the app
+    /// from background doesn't trigger a body re-eval and the user sees
+    /// stale "In 8h 23m" counts. Two refresh sources:
+    ///   1. `.onChange(of: scenePhase)` — when entering .active (cold + warm)
+    ///   2. Timer.publish(every: 30) — every 30s while foregrounded
+    @State private var now: Date = Date()
 
     /// Step preset chips. Anti-cheat jitter is applied per-fire inside RootView.
     private let stepPresets: [Int] = [10, 25, 50, 100]
@@ -123,6 +132,17 @@ struct AlarmSetupView: View {
             }
             .presentationDetents([.medium])
         }
+        // Refresh `now` so wakeSubtitle / nextFireSubtitle update:
+        //   - immediately whenever the scene becomes active (cold launch,
+        //     return from background, or panel-slide)
+        //   - every 30s while the screen is up, so "In 8h 23m" advances
+        //     without user interaction.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { now = Date() }
+        }
+        .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
+            now = Date()
+        }
     }
 
     /// Formats `time` as "7:00 AM" for the read-back hero.
@@ -134,16 +154,17 @@ struct AlarmSetupView: View {
 
     // MARK: - Dynamic strings
 
-    /// "Wake at 6:30 AM · In 8h 23m" — dynamic, not a static label.
+    /// "Wake at 6:30 AM · In 8h 23m" — driven by `now` state, so it stays
+    /// accurate across scenePhase transitions and ticks every 30s.
     private var wakeSubtitle: String {
-        guard let fireDate = alarmStore.alarm.nextFireDate() else {
+        guard let fireDate = alarmStore.alarm.nextFireDate(after: now) else {
             return alarmStore.alarm.enabled ? "Tap to schedule" : "Disabled"
         }
         let fireFmt = DateFormatter()
         fireFmt.dateFormat = "h:mm a"
         let wakeAt = fireFmt.string(from: fireDate)
 
-        let interval = fireDate.timeIntervalSince(Date())
+        let interval = fireDate.timeIntervalSince(now)
         let inText = TimeFormatting.relativeUntil(interval)
 
         return "Wake at \(wakeAt) · \(inText)"
@@ -151,7 +172,7 @@ struct AlarmSetupView: View {
 
     /// Subtitle for the Enable pill — "Tomorrow at 6:30 AM" etc.
     private var nextFireSubtitle: String {
-        guard let fireDate = alarmStore.alarm.nextFireDate() else {
+        guard let fireDate = alarmStore.alarm.nextFireDate(after: now) else {
             return "Off"
         }
         let f = DateFormatter()
